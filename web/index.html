@@ -1,0 +1,4013 @@
+﻿<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CNC soustružení – Dashboard, Editor hřídele &amp; Editor nože</title>
+<style>
+:root{
+  --bg:#0b0f19;
+  --surface:#111827;
+  --panel:rgba(17,24,39,0.85);
+  --text:#e2e8f0;
+  --muted:#94a3b8;
+  --accent:#06b6d4;
+  --accent-2:#0891b2;
+  --grid:#1e293b;
+  --edge:#fb923c;
+  --profile:#38bdf8;
+  --comp:#34d399;
+  --tool:#f87171;
+  --pass:#a3e635;
+  --retr:#fbbf24;
+  --border:rgba(148,163,184,0.15);
+  --shadow:0 8px 32px rgba(0,0,0,0.45);
+  --radius:16px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  background:radial-gradient(1200px 800px at 10% -10%,#0f172a 0%,#020617 100%);
+  color:var(--text);
+  margin:0;
+  padding:0;
+  min-height:100vh;
+}
+h2{
+  color:var(--accent);
+  margin:0 0 4px 0;
+  font-size:1.6rem;
+  font-weight:700;
+  letter-spacing:-0.02em;
+  text-shadow:0 0 20px rgba(6,182,212,0.25);
+}
+.subtitle{color:var(--muted);font-size:0.9rem;margin-bottom:8px}
+
+/* ===== PAGES ===== */
+.page{display:none;width:100%;min-height:100vh}
+.page.active{display:block}
+
+/* ===== DASHBOARD ===== */
+.dash-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:20px 24px;background:var(--surface);border-bottom:1px solid var(--border);
+  flex-wrap:wrap;gap:12px;
+}
+.dash-header h1{margin:0;font-size:1.4rem;color:var(--accent)}
+.dash-actions{display:flex;gap:10px;flex-wrap:wrap}
+.dash-actions button{
+  margin:0;
+}
+.dash-search{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;padding:20px 24px;background:rgba(15,23,42,0.5);
+  border-bottom:1px solid var(--border);
+}
+.dash-search input,.dash-search select{
+  background:#0b1220;border:1px solid var(--border);color:var(--text);
+  padding:8px 12px;border-radius:10px;font-size:13px;outline:none;
+}
+.dash-search input:focus,.dash-search select:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px rgba(6,182,212,0.15);
+}
+.dash-section-title{
+  padding:18px 24px 6px;font-size:1.1rem;font-weight:700;color:var(--text);
+  display:flex;align-items:center;gap:8px;
+}
+.dash-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:16px;padding:0 24px 24px;
+}
+.dash-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px;position:relative;transition:transform .15s,box-shadow .15s;
+}
+.dash-card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.dash-card .preview{
+  width:100%;height:170px;background:#020408;border-radius:10px;margin-bottom:12px;
+  border:1px solid var(--border);display:block;
+}
+.dash-card h4{margin:0 0 6px;font-size:1rem;color:var(--text)}
+.dash-card .meta{font-size:11px;color:var(--muted);margin-bottom:10px}
+.dash-card .positions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.dash-card .pos-btn{
+  width:28px;height:28px;border-radius:6px;border:1px solid var(--border);
+  background:#0f172a;color:var(--accent);font-size:12px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+.dash-card .pos-btn:hover{background:var(--accent);color:#000}
+.dash-card .menu-btn{
+  position:absolute;top:10px;right:10px;background:transparent;border:none;
+  color:var(--muted);font-size:18px;cursor:pointer;padding:4px;border-radius:6px;
+  transition:background .15s;
+}
+.dash-card .menu-btn:hover{background:rgba(148,163,184,0.15)}
+.dash-card .dropdown{
+  position:absolute;top:38px;right:10px;background:#111827;
+  border:1px solid var(--border);border-radius:10px;padding:6px;
+  display:none;flex-direction:column;gap:4px;z-index:20;min-width:180px;
+  box-shadow:var(--shadow);
+}
+.dash-card .dropdown.active{display:flex}
+.dash-card .dropdown button{
+  background:transparent;color:var(--text);text-align:left;padding:7px 10px;
+  font-size:12px;border-radius:6px;box-shadow:none;margin:0;font-weight:500;
+}
+.dash-card .dropdown button:hover{background:rgba(6,182,212,0.12)}
+.dash-card .dropdown button.danger{color:#f87171}
+.dash-card .dropdown button.danger:hover{background:rgba(248,113,113,0.12)}
+.dash-card .tool-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:6px}
+.dash-card .tool-meta span{background:rgba(6,182,212,0.08);padding:2px 8px;border-radius:6px;color:var(--accent)}
+
+/* ===== EDITOR HEADER ===== */
+.editor-header{
+  display:flex;align-items:center;gap:12px;padding:14px 24px;
+  background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;
+}
+.editor-header h2{margin:0;font-size:1.25rem}
+.editor-header .spacer{flex:1}
+.editor-header .breadcrumbs{color:var(--muted);font-size:0.9rem}
+
+.container{
+  background:var(--panel);
+  padding:24px;
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  max-width:1400px;
+  width:100%;
+  border:1px solid var(--border);
+  backdrop-filter:blur(12px);
+  margin:20px auto;
+}
+
+/* Controls */
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:14px;
+  margin-bottom:16px;
+}
+.controls label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:12px;
+  color:var(--muted);
+  font-weight:500;
+  flex:1;min-width:140px;
+}
+input,select{
+  width:100%;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:#0b1220;
+  color:var(--text);
+  font-size:13px;
+  outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+input:focus,select:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(6,182,212,0.15);
+}
+button{
+  margin:4px 4px;
+  padding:8px 16px;
+  border:none;
+  border-radius:10px;
+  background:linear-gradient(180deg,var(--accent),var(--accent-2));
+  color:#000;
+  font-weight:700;
+  font-size:12px;
+  cursor:pointer;
+  transition:transform .15s,filter .15s,box-shadow .15s;
+  box-shadow:0 4px 14px rgba(6,182,212,0.25);
+}
+button:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.1);
+  box-shadow:0 6px 20px rgba(6,182,212,0.35);
+}
+button:active{transform:translateY(0)}
+
+/* Library panel */
+.library-panel{
+  background:linear-gradient(180deg,rgba(30,41,59,0.6),rgba(15,23,42,0.4));
+  border-radius:var(--radius);
+  padding:16px;
+  margin:14px 0;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:stretch;
+  border:1px solid var(--border);
+}
+.library-panel td{padding:1px;text-align:right;border:none}
+.library-group{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:rgba(15,23,42,0.5);
+  padding:8px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  min-width:180px;
+  height: auto;
+}
+.library-group label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
+.library-group select{font-size:12px;padding:6px}
+.library-group div{display:flex;flex-wrap:wrap;gap:6px}
+
+/* Canvas area */
+.dual-canvas{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+  gap:16px;
+  margin-top:16px;
+}
+.canvas-box{
+  background:#030712;
+  border-radius:var(--radius);
+  padding:12px;
+  border:1px solid var(--border);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.03);
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  overflow:hidden;
+}
+.canvas-box h3{
+  font-size:13px;
+  margin:0 0 10px;
+  color:#cbd5e1;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.canvas-box h3::before{
+  content:"";
+  display:inline-block;
+  width:8px;height:8px;border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 8px var(--accent);
+}
+.canvas-toolbar{
+  display:flex;
+  gap:8px;
+  margin-bottom:8px;
+  flex-wrap:wrap;
+}
+.canvas-toolbar button{
+  background:linear-gradient(180deg,#334155,#1e293b);
+  color:var(--text);
+  box-shadow:none;
+  font-size:11px;
+  padding:6px 12px;
+}
+.canvas-toolbar button:hover{filter:brightness(1.2);transform:none;}
+canvas{
+  background:#020408;
+  border:1px solid #1e293b;
+  width:100%;
+  height:400px;
+  display:block;
+  cursor:crosshair;
+  border-radius:10px;
+}
+.small{
+  font-size:11px;
+  opacity:0.65;
+  margin-top:8px;
+  line-height:1.5;
+}
+
+/* Legend */
+.legend{
+  display:flex;
+  gap:18px;
+  margin-top:12px;
+  font-size:11px;
+  flex-wrap:wrap;
+  align-items:center;
+  padding:12px;
+  background:rgba(15,23,42,0.4);
+  border-radius:12px;
+  border:1px solid var(--border);
+}
+.leg{display:flex;gap:8px;align-items:center;color:var(--muted);font-weight:500}
+.swatch,.swatch2,.swatch3,.swatch4,.swatch5,.swatch6{width:20px;height:3px;border-radius:2px}
+.swatch{background:var(--profile);box-shadow:0 0 6px var(--profile)}
+.swatch2{background:var(--edge);box-shadow:0 0 6px var(--edge)}
+.swatch3{background:var(--comp);box-shadow:0 0 6px var(--comp)}
+.swatch4{background:var(--tool);box-shadow:0 0 6px var(--tool)}
+.swatch5{background:var(--pass);box-shadow:0 0 6px var(--pass)}
+.swatch6{background:var(--retr);box-shadow:0 0 6px var(--retr)}
+
+.legend button{
+  background:linear-gradient(180deg,#059669,#047857);
+  box-shadow:0 4px 14px rgba(5,150,105,0.25);
+  color:#fff;
+}
+.legend button:hover{box-shadow:0 6px 20px rgba(5,150,105,0.35)}
+#exportJsonBtn{background:linear-gradient(180deg,#4f46e5,#4338ca);color:#fff;box-shadow:0 4px 14px rgba(79,70,229,0.25)}
+#importJsonBtn{background:linear-gradient(180deg,#0e7490,#0c4a6e);color:#fff;box-shadow:0 4px 14px rgba(6,182,212,0.25)}
+#clearTargetBtn,#clearToolBtn{background:linear-gradient(180deg,#be123c,#9f1239);color:#fff;box-shadow:0 4px 14px rgba(190,18,60,0.25)}
+#radiusModeBtn{background:linear-gradient(180deg,#92400e,#78350f)!important;color:#fff!important;box-shadow:0 4px 14px rgba(146,64,14,0.25)!important}
+
+/* Table */
+.table-wrapper{
+  max-height:280px;
+  overflow:auto;
+  margin:16px 0;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:rgba(15,23,42,0.3);
+}
+.table-wrapper::-webkit-scrollbar{width:8px;height:8px}
+.table-wrapper::-webkit-scrollbar-track{background:transparent}
+.table-wrapper::-webkit-scrollbar-thumb{background:#334155;border-radius:4px}
+.table-wrapper::-webkit-scrollbar-thumb:hover{background:#475569}
+table{width:100%;border-collapse:separate;border-spacing:0}
+th{
+  background:#0f172a;
+  color:var(--accent);
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  padding:10px 8px;
+  position:sticky;
+  top:0;
+  z-index:1;
+  border-bottom:1px solid var(--border);
+}
+td{
+  border-bottom:1px solid rgba(148,163,184,0.08);
+  padding:6px;
+  text-align:center;
+  font-size:12px;
+}
+tr:hover td{background:rgba(6,182,212,0.05)}
+td input{
+  width:90px;
+  padding:6px;
+  font-size:12px;
+  text-align:center;
+  background:#0b1220;
+}
+
+/* 3D viewer */
+#viewer3d{
+  width:100%;
+  height:380px;
+  background:#020408;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  margin-top:16px;
+  overflow:hidden;
+  position:relative;
+  box-shadow:0 0 0 1px rgba(6,182,212,0.06), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+#viewer3d-label{
+  position:absolute;
+  top:12px;left:16px;
+  font-size:11px;
+  color:var(--accent);
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+  pointer-events:none;
+  z-index:2;
+  display:flex;align-items:center;gap:6px;
+}
+#viewer3d-label::before{
+  content:"";
+  display:inline-block;width:6px;height:6px;
+  border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 6px var(--accent);
+  animation:pulse3d 2s ease-in-out infinite;
+}
+@keyframes pulse3d{
+  0%,100%{opacity:1} 50%{opacity:0.35}
+}
+#viewer3d canvas{display:block}
+
+/* Output */
+textarea{
+  width:100%;
+  height:260px;
+  margin-top:14px;
+  border-radius:12px;
+  background:#020408;
+  color:#34d399;
+  padding:14px 14px 14px 54px;
+  font-family:'JetBrains Mono','Fira Code',monospace;
+  font-size:12px;
+  line-height:1.6;
+  border:1px solid var(--border);
+  resize:vertical;
+  outline:none;
+  transition:border-color .2s;
+  background-attachment:local;
+  background-repeat:no-repeat;
+  background-position:0 0;
+}
+textarea:focus{border-color:var(--accent)}
+
+.action-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  margin-top:12px;
+}
+#timeMsg{
+  font-size:12px;
+  color:var(--comp);
+  font-weight:600;
+  margin-left:auto;
+}
+
+/* Checkbox */
+label:has(input[type="checkbox"]){
+  display:inline-flex!important;
+  flex-direction:row!important;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:600;
+}
+input[type="checkbox"]{
+  width:18px;height:18px;
+  accent-color:var(--accent);
+  cursor:pointer;
+}
+.active-speed{
+  box-shadow:0 0 0 2px var(--accent)!important;
+  filter:brightness(1.25);
+}
+
+/* Responsive */
+@media (max-width:768px){
+  body{padding:0}
+  .container{padding:14px;margin:10px}
+  .dual-canvas{grid-template-columns:1fr}
+  canvas{height:300px}
+  .legend{gap:10px}
+  .dash-search{grid-template-columns:1fr}
+}
+
+/* ── Toast notifikace ── */
+#toast-container{
+  position:fixed;
+  bottom:24px;right:24px;
+  display:flex;flex-direction:column;gap:10px;
+  z-index:9999;
+  pointer-events:none;
+}
+.toast{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 18px;
+  border-radius:12px;
+  font-size:13px;font-weight:600;
+  color:#fff;
+  box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  opacity:0;
+  transform:translateX(40px);
+  transition:opacity .25s,transform .25s;
+  pointer-events:auto;
+  max-width:360px;
+  backdrop-filter:blur(8px);
+}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast.hide{opacity:0;transform:translateX(40px)}
+.toast.error  {background:rgba(190,18,60,0.92);border:1px solid #e11d48}
+.toast.warning{background:rgba(146,64,14,0.92);border:1px solid #f97316}
+.toast.success{background:rgba(5,150,105,0.92);border:1px solid #10b981}
+.toast.info   {background:rgba(6,130,178,0.92);border:1px solid #06b6d4}
+.toast-icon{font-size:16px;flex-shrink:0}
+
+/* ── Modální dialog (confirm / prompt) ── */
+#modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.65);
+  backdrop-filter:blur(4px);
+  z-index:10000;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s;
+}
+#modal-overlay.active{opacity:1;pointer-events:auto}
+#modal-box{
+  background:#111827;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:0 24px 64px rgba(0,0,0,0.6);
+  padding:28px 28px 20px;
+  min-width:320px;max-width:420px;width:90%;
+  display:flex;flex-direction:column;gap:16px;
+  transform:translateY(16px);
+  transition:transform .2s;
+}
+#modal-overlay.active #modal-box{transform:translateY(0)}
+#modal-title{
+  font-size:14px;font-weight:700;
+  color:var(--text);line-height:1.45;
+  white-space:pre-wrap;
+}
+#modal-input{
+  width:100%;padding:9px 12px;
+  border-radius:10px;border:1px solid var(--border);
+  background:#0b1220;color:var(--text);font-size:13px;outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+#modal-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(6,182,212,0.15)}
+#modal-btns{display:flex;gap:10px;justify-content:flex-end}
+#modal-btns button{margin:0}
+#modal-cancel{background:linear-gradient(180deg,#334155,#1e293b);color:var(--text);box-shadow:none}
+#modal-cancel:hover{filter:brightness(1.2)}
+
+/* ── Dashboard modals ── */
+.dash-modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.65);
+  backdrop-filter:blur(4px);
+  z-index:10001;
+  display:none;align-items:center;justify-content:center;
+}
+.dash-modal-overlay.active{display:flex}
+.dash-modal-box{
+  background:#111827;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:0 24px 64px rgba(0,0,0,0.6);
+  padding:24px;
+  min-width:320px;max-width:440px;width:90%;
+  display:flex;flex-direction:column;gap:14px;
+}
+.dash-modal-box h3{margin:0;font-size:1.1rem;color:var(--accent)}
+.dash-modal-box label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.dash-modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:4px}
+.dash-modal-btns button{margin:0}
+
+/* ── Image overlay controls ── */
+.img-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;padding:8px 10px;background:rgba(15,23,42,0.7);border:1px solid var(--border);border-radius:10px}
+.img-controls label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.img-controls input[type=range]{width:80px;accent-color:var(--accent)}
+#imgMoveBtn.active{background:linear-gradient(180deg,#0e7490,#0c4a6e);box-shadow:0 0 0 2px #06b6d4}
+
+/* ── Selection count badge ── */
+.sel-hint{font-size:11px;color:var(--accent);font-weight:600;margin-top:4px;min-height:16px}
+
+/* Cursor info */
+.cursor-info{
+  display:flex;gap:16px;align-items:center;margin-bottom:8px;padding:6px 10px;
+  background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--muted);
+}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+  }
+}
+</script>
+<base target="_blank">
+<base target="_blank">
+<base target="_blank">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     PAGE 1: DASHBOARD
+     ═══════════════════════════════════════ -->
+<div id="page-dashboard" class="page active">
+  <div class="dash-header">
+    <h1>⚙️ CNC soustružení – Dashboard</h1>
+    <div class="dash-actions">
+      <button onclick="openDashModal('modal-new-project')">+ Nový projekt</button>
+      <button onclick="openDashModal('modal-new-tool')">+ Nový nůž</button>
+      <button onclick="exportDatabase()">📦 Export DB</button>
+      <button onclick="importDatabase()">📂 Import DB</button>
+    </div>
+  </div>
+
+  <div class="dash-search">
+    <input id="searchProjects" placeholder="Hledat projekty podle názvu..." oninput="renderDashboard()">
+    <select id="filterProjectTool" onchange="renderDashboard()"><option value="">Všechny nože (projekty)</option></select>
+    <input id="searchTools" placeholder="Hledat nože podle názvu..." oninput="renderDashboard()">
+    <select id="filterToolCategory" onchange="renderDashboard()">
+      <option value="">Všechny kategorie</option>
+      <option value="rough">Hrubovací</option>
+      <option value="finish">Dokončovací</option>
+      <option value="thread">Závitový</option>
+      <option value="groove">Zápichový</option>
+    </select>
+  </div>
+
+  <div class="dash-section-title">📁 Projekty (Hřídele)</div>
+  <div id="projectGrid" class="dash-grid"></div>
+
+  <div class="dash-section-title">🔪 Nože (Nástroje)</div>
+  <div id="toolGrid" class="dash-grid"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 2: EDITOR HŘÍDELE
+     ═══════════════════════════════════════ -->
+<div id="page-shaft" class="page">
+  <div class="editor-header">
+    <button onclick="showPage('dashboard')">← Zpět na dashboard</button>
+    <h2 id="shaftEditorTitle">Editace hřídele</h2>
+    <span class="breadcrumbs" id="shaftEditorBreadcrumb">Projekt → Poloha 1</span>
+    <div class="spacer"></div>
+    <button onclick="saveCurrentPosition()">💾 Uložit polohu</button>
+    
+  </div>
+
+  <div class="container">
+    <div class="controls">
+      <label>Původní průměr<input id="startDia" type="number" value="20" step="0.5"></label>
+      <label>Feed F (mm/min)<input id="feed" type="number" value="150"></label>
+      <label>Feed dokončení<input id="feedDokonceni" type="number" value="80"></label>
+      <label>Hloubka řezu (mm)<input id="stepRad" type="number" value="0.1" step="0.1"></label>
+      <label>Odjezd Y (mm)<input id="retractRad" type="number" value="-0.5" step="0.1"></label>
+      <label>Dokončení (mm)<input id="dokonceni" type="number" value="0.05" step="0.05"></label>
+      <label>Orientace nože<select id="knife"><option value="left">Levý</option><option value="right">Pravý</option></select></label>
+      <label>Způsob obrábění<select id="mode"><option value="all">Hrubování+dokončení</option><option value="rough">Jen hrubování</option><option value="finish">Jen dokončování</option></select></label>
+      <label>Krok X (mm)<input id="stepX" type="number" value="0.01" step="0.01"></label>
+      <label>Krok Y (mm)<input id="stepY" type="number" value="0.005" step="0.005"></label>
+      <label>Snap mřížka (mm)<input id="snapSize" type="number" value="0.5" step="0.1"></label>
+      <label style="min-width:200px">Nůž pro simulaci<select id="shaftToolSelect"><option value="">--Vyberte nůž--</option></select></label>
+    </div>
+
+    <div class="library-panel">
+      <div class="library-group" style="gap:0">
+        <label>⛏️ Zápich E/F</label>
+            <table>
+          <tr>
+        <td><select id="grooveType" style="font-size:12px;padding:6px;margin-bottom:4px;width:100%">
+          <option value="E" selected>E zapich</option>
+          <option value="F">F zapich</option>
+        </select></td>
+        <td><input id="grooveWidth" type="number" value="0.4" step="0.1" min="0.1" placeholder="Šířka (mm)" style="margin-bottom:4px;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:#0b1220;color:var(--text);font-size:12px;outline:none;box-sizing:border-box"></td>
+        </tr>
+          <tr>
+        <td><input id="grooveDepth" type="number" value="0.1" step="0.05" min="0.01" placeholder="Hloubka (mm)" style="margin-bottom:4px;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:#0b1220;color:var(--text);font-size:12px;outline:none;box-sizing:border-box"></td>
+        <td><input id="grooveRadius" type="number" value="0.2" step="0.05" min="0" placeholder="Poloměr rohu/dna (mm)" style="margin-bottom:4px;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:#0b1220;color:var(--text);font-size:12px;outline:none;box-sizing:border-box"></td>
+          </tr>
+        </table>
+        <button id="grooveModeBtn" style="background:linear-gradient(180deg,#92400e,#78350f);color:#fff;width:100%;margin:4px 0">⛏ Vložit zápich</button>
+        <span id="grooveStatus" style="font-size:11px">⚙️ Režim zápich neaktivní</span>
+      </div>
+      <div class="library-group" style="gap:0">
+        <label>⛏️ Rádius</label>
+        <button id="radiusModeBtn" style="background:#7a5a3e;">📐 Vložit rádius</button>
+        <span id="radiusStatus" style="font-size:11px">⚙️ Režim rádius neaktivní</span>
+      </div>
+      <div class="library-group">
+        <label>🔪 Upichnutí</label>
+        <table>
+          <tr>
+            <td><label for="depthStep">Hloubka vpichu</label><input type="number" id="depthStep" style="width:90px;" value="0.05" step="0.01" min="0.01"></td>
+            <td><label for="sideStep">Odskok v X</label><input type="number" id="sideStep" style="width:90px;" value="0.1" step="0.01" min="0"></td>
+          </tr>
+          <tr>
+            <td><label for="xPart">Upichnout v X</label><input type="number" id="xPart" style="width:90px;" value="30" step="0.1"></td>
+            <td><label for="feedupichnuti">Posuv F</label><input type="number" id="feedupichnuti" style="width:90px;" value="50" step="1" min="1"></td>
+          </tr>
+        </table>
+        <button id="generateUpichnutiBtn">Vygenerovat G‑kód</button>
+      </div>
+    </div>
+
+    <div class="dual-canvas">
+      <div class="canvas-box">
+        <h3>📐 Cílová hřídel (podřez povolen)</h3>
+        <div class="cursor-info" id="targetCursorInfo">
+          <span><b style="color:var(--accent)">Kurzor:</b> X=<span id="targetCursorX">--</span> Y=<span id="targetCursorY">--</span></span>
+          <span style="color:var(--border)">|</span>
+          <span><b style="color:var(--comp)">Snap:</b> X=<span id="targetSnapX">--</span> Y=<span id="targetSnapY">--</span></span>
+        </div>
+        <div class="canvas-toolbar">
+          <button id="resetZoomTarget">🔄 Reset zoom</button>
+          <span style="font-size:11px;color:var(--muted);margin-left:auto">Pan: pravý/střední táhnout | Zoom: kolečko</span>
+        </div>
+        <canvas id="targetCanvas" width="800" height="400" style="height:400px;"></canvas>
+        <div class="small">Klik = přidat bod | Tažení = přesunout | <b>Shift+tažení</b> = vybrat rámečkem | Shift+klik = přidat/odebrat z výběru | Del = smazat vybrané | Dvojklik = smazat bod | <b>Ctrl+klik na dráhu</b> = skok v G-code</div>
+        <div class="sel-hint" id="targetSelHint"></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="leg"><span class="swatch"></span> Cílová hřídel</div>
+      <div class="leg"><span class="swatch2"></span> Hrubý materiál</div>
+      <div class="leg"><span class="swatch3"></span> Kompenzovaný profil</div>
+      <div class="leg"><span class="swatch4"></span> Tvar nože</div>
+      <div class="leg"><span class="swatch5"></span> G1 řez</div>
+      <div class="leg"><span class="swatch6"></span> G0 přejezd</div>
+      <button id="simulateBtn" style="background:#2f6b47">⚡ SPUSTIT SIMULACI</button>
+      <button id="exportJsonBtn">📦 Export nastavení JSON</button>
+      <button id="importJsonBtn">📂 Import nastavení JSON</button>
+      <input type="file" id="importJsonFile" accept=".json" style="display:none">
+      <button id="clearTargetBtn">🗑️ Smazat hřídel</button>
+      <button id="genGcodeBtn">⚡ Generovat G-code</button>
+      <button id="downloadGcodeBtn">💾 Stáhnout G-code</button>
+      <button id="playGcodeBtn" style="background:linear-gradient(180deg,#16a34a,#15803d);color:#fff">▶️ Přehrát</button>
+      <button id="pauseGcodeBtn" style="background:linear-gradient(180deg,#ca8a04,#a16207);color:#fff;display:none">⏸️ Pauza</button>
+      <button id="stopGcodeBtn" style="background:linear-gradient(180deg,#dc2626,#b91c1c);color:#fff">⏹️ Stop</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600">
+        Zrychlení
+        <input id="speedInput" type="number" value="1" min="1" max="100" step="1" 
+               style="width:60px;padding:4px 7px;border-radius:7px;border:1px solid var(--border);background:#0b1220;color:var(--text);font-size:12px;outline:none">
+        <span>×</span>
+      </label>
+      <label><input type="checkbox" id="showPassesCheckbox" checked> Zobrazit průjezdy</label>
+      <span id="timeMsg"></span>
+    </div>
+    <textarea id="output" placeholder="G-code (šipky pro náhled nože)"></textarea>
+    <div class="table-wrapper">
+      <table id="profileTable">
+        <thead><tr><th>X (mm)</th><th>Průměr (mm)</th><th>Akce</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button id="addRowBtn">➕ Přidat bod</button>
+      <button id="syncTableBtn">🔄 Synchronizovat tabulku</button>
+      <button id="saveProfileBtn">💾 Uložit JSON</button>
+      <input type="file" id="loadFile" style="display:none">
+      <button id="loadProfileBtn">📂 Načíst JSON</button>
+    </div>
+
+    <div id="viewer3d">
+      <div id="viewer3d-label">3D náhled hřídele</div>
+      <button id="resetCamBtn" style="position:absolute;bottom:12px;right:12px;z-index:2;font-size:11px;padding:5px 10px;opacity:0.7">⟳ Reset pohledu</button>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-top:8px;padding:6px 12px;background:rgba(15,23,42,0.6);border:1px solid var(--border);border-radius:10px;font-size:12px;flex-wrap:wrap;">
+      <label style="display:flex;gap:7px;align-items:center;cursor:pointer;color:var(--muted)">
+        <input type="checkbox" id="materialRemovalCheck" style="width:15px;height:15px;accent-color:var(--accent)">
+        <span>Animace odebírání materiálu</span>
+      </label>
+      <span style="color:var(--border)">|</span>
+      <span id="materialRemovalInfo" style="color:var(--muted);font-size:11px">– klikni na řádek G-code pro aktualizaci</span>
+    </div>
+
+    <p class="small">✅ Rádius: aktivuj režim, klikni na vrchol, zadej poloměr, poté klikni na zobrazený oblouk pro výběr směru (Esc = zrušit).<br>
+    ✅ 3D zobrazuje cílovou hřídel.<br>
+    ✅ Editor hřídele – polohy se ukládají do projektu v Dashboardu.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE 3: EDITOR NOŽE
+     ═══════════════════════════════════════ -->
+<div id="page-tool" class="page">
+  <div class="editor-header">
+    <button onclick="showPage('dashboard')">← Zpět na dashboard</button>
+    <h2 id="toolEditorTitle">Tvorba / Editace nože</h2>
+    <div class="spacer"></div>
+    <button onclick="saveCurrentTool()">💾 Uložit nůž</button>
+  </div>
+
+  <div class="container">
+    <div class="library-panel">
+      <!-- Knihovna nožů odstraněna - používá se dashboard -->
+      <div class="library-group" style="gap:0">
+        <label>📐 Rádius</label>
+        <button id="radiusModeBtnTool" style="background:#7a5a3e;color:#fff;width:100%;margin:4px 0">📐 Vložit rádius</button>
+        <span id="radiusStatusTool" style="font-size:11px">⚙️ Režim rádius neaktivní</span>
+      </div>
+      <div class="library-group">
+        <label>🖼️ Obrázek</label>
+        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+          <button id="importImgBtn">🖼️ Import obrázku</button>
+          <input type="file" id="importImgFile" accept="image/*" style="display:none">
+        </div>
+        <div id="imgControls" class="img-controls" style="display:none">
+          <button id="imgMoveBtn">✋ Přesunout obrázek</button>
+          <label>Průhlednost <input type="range" id="imgOpacity" min="5" max="90" value="40"></label>
+          <button id="imgRemoveBtn" style="background:linear-gradient(180deg,#7f1d1d,#991b1b)">🗑️ Odebrat obrázek</button>
+        </div>
+      </div>
+      <div class="library-group" style="min-width:300px">
+        <label>🔧 Generátor nože (ISO kód)</label>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+          <input id="insertCode" type="text" placeholder="např. DCMT070204"
+            style="font-family:monospace;font-size:13px;letter-spacing:0.08em;width:150px;text-transform:uppercase"
+            maxlength="12">
+          <button id="parseInsertBtn" style="padding:5px 10px;font-size:11px">🔍 Rozeznat</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+          <label style="font-size:11px;color:var(--muted)">Tvar (pos. 1)
+            <select id="ins_shape" style="margin-top:3px;font-size:12px">
+              <option value="D">D – kosočtverec 55°</option>
+              <option value="C">C – kosočtverec 80°</option>
+              <option value="T">T – trojúhelník 60°</option>
+              <option value="S">S – čtverec 90°</option>
+              <option value="V">V – kosočtverec 35°</option>
+              <option value="E">E – kosočtverec 75°</option>
+              <option value="W">W – trigon 80°</option>
+              <option value="R">R – kulatý</option>
+            </select>
+          </label>
+          <label style="font-size:11px;color:var(--muted)">Velikost IC (pos. 5-6, mm)
+            <input id="ins_size" type="number" value="7" min="1" max="50" step="1" style="margin-top:3px">
+          </label>
+          <label style="font-size:11px;color:var(--muted)">Rádius špičky (pos. 9-10, ×0.1mm)
+            <input id="ins_radius" type="number" value="4" min="0" max="32" step="2" style="margin-top:3px">
+          </label>
+          <label style="font-size:11px;color:var(--muted)">Úhel hřbetu (pos. 2, °)
+            <input id="ins_clearance" type="number" value="7" min="0" max="30" step="1" style="margin-top:3px">
+          </label>
+        </div>
+        <div id="insertDesc" style="font-size:11px;color:var(--accent);margin-top:6px;line-height:1.6;min-height:16px"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button id="genInsertBtn" style="flex:1">⚙️ Vygenerovat nůž</button>
+          <button id="genInsertHolderBtn" style="flex:1;background:linear-gradient(180deg,#c2410c,#7c2d12)">⚙️ + Držák</button>
+        </div>
+      </div>
+    </div>
+      <div class="cursor-info" id="toolCursorInfo">
+        <span><b style="color:var(--accent)">Kurzor:</b> X=<span id="toolCursorX">--</span> Y=<span id="toolCursorY">--</span></span>
+        <span style="color:var(--border)">|</span>
+        <span><b style="color:var(--comp)">Snap:</b> X=<span id="toolSnapX">--</span> Y=<span id="toolSnapY">--</span></span>
+      </div>
+      <div class="canvas-toolbar">
+        <button id="resetZoomTool">🔄 Reset zoom</button>
+        <button id="toolModeBtn" style="background:linear-gradient(180deg,#2f6b47,#1a4731)">✏️ Nůž</button>
+        <button id="clearHolderBtn" style="font-size:11px;padding:5px 10px;background:linear-gradient(180deg,#7f1d1d,#991b1b)" title="Smazat polygon držáku">🗑️ Držák</button>
+        <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;margin-left:8px">Snap (mm)
+          <input id="snapSizeTool" type="number" value="0.5" step="0.1" style="width:60px;padding:4px 7px;border-radius:7px;border:1px solid var(--border);background:#0b1220;color:var(--text);font-size:12px;outline:none">
+        </label>
+        <span style="font-size:11px;color:var(--muted);margin-left:auto">Pan: pravý/střední táhnout | Zoom: kolečko</span>
+      </div>
+      <canvas id="toolCanvas" width="800" height="400" style="height:400px"></canvas>
+      <div class="small">Klik = přidat bod | Tažení = přesunout | <b>Shift+tažení</b> = vybrat rámečkem | Shift+klik = přidat/odebrat | Del = smazat vybrané | <b>Scroll</b> = zvětšit/zmenšit obrázek (pouze v režimu přesunu)</div>
+      <div class="sel-hint" id="toolSelHint"></div>
+    </div>
+
+    <p class="small">✅ Knihovna: ukládání/načítání nožů – po načtení lze normálně editovat.<br>
+    ✅ Rádius: aktivuj režim, klikni na vrchol, zadej poloměr, poté klikni na zobrazený oblouk pro výběr směru (Esc = zrušit).<br>
+    ✅ Držák: přepni mód tlačítkem ✏️ Nůž / Držák.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     DASHBOARD MODALS
+     ═══════════════════════════════════════ -->
+<div id="modal-new-project" class="dash-modal-overlay" onclick="if(event.target===this)closeDashModal('modal-new-project')">
+  <div class="dash-modal-box">
+    <h3>➕ Nový projekt</h3>
+    <label>Název projektu<input id="newProjectName" type="text" placeholder="např. Hřídel 001"></label>
+    <label>Výchozí nůž<select id="newProjectTool"><option value="">--Žádný--</option></select></label>
+    <div class="dash-modal-btns">
+      <button onclick="closeDashModal('modal-new-project')" style="background:linear-gradient(180deg,#334155,#1e293b);color:#fff">Zrušit</button>
+      <button onclick="createProject()">Vytvořit a otevřít</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-new-tool" class="dash-modal-overlay" onclick="if(event.target===this)closeDashModal('modal-new-tool')">
+  <div class="dash-modal-box">
+    <h3>➕ Nový nůž</h3>
+    <label>Název nože<input id="newToolName" type="text" placeholder="např. Vnější hrubovací"></label>
+    <label>Kategorie<select id="newToolCategory">
+      <option value="rough">Hrubovací</option>
+      <option value="finish">Dokončovací</option>
+      <option value="thread">Závitový</option>
+      <option value="groove">Zápichový</option>
+    </select></label>
+    <label>Poloměr špičky (mm)<input id="newToolRadius" type="number" value="0.4" step="0.1" min="0"></label>
+    <div class="dash-modal-btns">
+      <button onclick="closeDashModal('modal-new-tool')" style="background:linear-gradient(180deg,#334155,#1e293b);color:#fff">Zrušit</button>
+      <button onclick="createTool()">Vytvořit a otevřít</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: DELETE POSITION
+     ═══════════════════════════════════════ -->
+<div id="modal-delete-position" class="dash-modal-overlay" onclick="if(event.target===this)closeDashModal('modal-delete-position')">
+  <div class="dash-modal-box">
+    <h3>🗑️ Smazat polohu</h3>
+    <label>Vyberte polohu<select id="deletePositionSelect"></select></label>
+    <div class="dash-modal-btns">
+      <button onclick="closeDashModal('modal-delete-position')" style="background:linear-gradient(180deg,#334155,#1e293b);color:#fff">Zrušit</button>
+      <button onclick="confirmDeletePosition()" style="background:linear-gradient(180deg,#be123c,#9f1239);color:#fff">Smazat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     GLOBAL OVERLAYS
+     ═══════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div id="modal-title"></div>
+    <input id="modal-input" type="text" style="display:none">
+    <div id="modal-btns">
+      <button id="modal-cancel">Zrušit</button>
+      <button id="modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importDbFile" accept=".json" style="display:none" onchange="handleImportDb(this)">
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+import { TrackballControls } from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/TrackballControls.js';
+
+// ═══════════════════════════════════════
+//  TOAST & MODAL (původní, beze změny)
+// ═══════════════════════════════════════
+function showToast(message, type = 'info', duration = 3500) {
+  const icons = { error:'❌', warning:'⚠️', success:'✅', info:'ℹ️' };
+  const container = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span>${message}</span>`;
+  container.appendChild(t);
+  requestAnimationFrame(() => { requestAnimationFrame(() => { t.classList.add('show'); }); });
+  setTimeout(() => {
+    t.classList.add('hide');
+    t.addEventListener('transitionend', () => t.remove(), { once: true });
+  }, duration);
+}
+let _modalResolve = null;
+const overlay   = () => document.getElementById('modal-overlay');
+const modalBox  = () => document.getElementById('modal-title');
+const modalInp  = () => document.getElementById('modal-input');
+const modalOk   = () => document.getElementById('modal-ok');
+const modalCncl = () => document.getElementById('modal-cancel');
+
+function _openModal(msg, withInput, defaultVal = '') {
+  modalBox().textContent = msg;
+  const inp = modalInp();
+  if (withInput) { inp.style.display = ''; inp.value = defaultVal; }
+  else           { inp.style.display = 'none'; }
+  overlay().classList.add('active');
+  if (withInput) setTimeout(() => { inp.focus(); inp.select(); }, 50);
+  return new Promise(resolve => { _modalResolve = resolve; });
+}
+function _closeModal(value) {
+  overlay().classList.remove('active');
+  if (_modalResolve) { _modalResolve(value); _modalResolve = null; }
+}
+document.getElementById('modal-ok').addEventListener('click', () => {
+  const inp = modalInp();
+  _closeModal(inp.style.display === 'none' ? true : inp.value);
+});
+document.getElementById('modal-cancel').addEventListener('click', () => _closeModal(null));
+document.getElementById('modal-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('modal-ok').click();
+  if (e.key === 'Escape') _closeModal(null);
+});
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) _closeModal(null);
+});
+function showConfirm(msg) { return _openModal(msg, false); }
+function showPrompt(msg, def = '') { return _openModal(msg, true, def); }
+
+// ═══════════════════════════════════════
+//  DATOVÝ MODEL & PERSISTENCE (nové)
+// ═══════════════════════════════════════
+const LS_PROJECTS = 'cnc_v2_projects';
+const LS_TOOLS    = 'cnc_v2_tools';
+
+function generateId(){ return 'id_'+Math.random().toString(36).slice(2,9)+'_'+Date.now().toString(36); }
+
+function getProjects(){ return JSON.parse(localStorage.getItem(LS_PROJECTS)||'[]'); }
+function saveProjects(arr){ localStorage.setItem(LS_PROJECTS, JSON.stringify(arr)); }
+function getTools(){ return JSON.parse(localStorage.getItem(LS_TOOLS)||'[]'); }
+function saveTools(arr){ localStorage.setItem(LS_TOOLS, JSON.stringify(arr)); }
+
+let currentProjectId = null;
+let currentPositionId = null;
+let currentToolId = null;
+
+// ═══════════════════════════════════════
+//  ROUTING (nové)
+// ═══════════════════════════════════════
+window.showPage = function(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  if(page==='dashboard'){
+    document.getElementById('page-dashboard').classList.add('active');
+    renderDashboard();
+  }
+  if(page==='shaft'){
+    document.getElementById('page-shaft').classList.add('active');
+    initShaftEditor();
+    // Vynutit resize canvasu po zobrazení stránky
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        const tc = document.getElementById('targetCanvas');
+        if(tc && tc.parentElement){
+          const w = tc.parentElement.clientWidth;
+          if(w > 0){
+            tc.width = w * devicePixelRatio;
+            tc.height = 400 * devicePixelRatio;
+            drawAll();
+          }
+        }
+      });
+    });
+  }
+  if(page==='tool'){
+    document.getElementById('page-tool').classList.add('active');
+    initToolEditor();
+    // Vynutit resize canvasu po zobrazení stránky
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        const tc = document.getElementById('toolCanvas');
+        if(tc && tc.parentElement){
+          const w = tc.parentElement.clientWidth;
+          if(w > 0){
+            tc.width = w * devicePixelRatio;
+            tc.height = 400 * devicePixelRatio;
+            drawAll();
+          }
+        }
+      });
+    });
+  }
+};
+
+window.openDashModal = function(id){ document.getElementById(id).classList.add('active'); };
+window.closeDashModal = function(id){ document.getElementById(id).classList.remove('active'); };
+
+// ═══════════════════════════════════════
+//  DASHBOARD LOGIKA (nové)
+// ═══════════════════════════════════════
+function populateToolSelects(){
+  const tools = getTools();
+  const opts = tools.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const selProject = document.getElementById('newProjectTool');
+  const selShaft = document.getElementById('shaftToolSelect');
+  const selFilter = document.getElementById('filterProjectTool');
+  if(selProject){ selProject.innerHTML='<option value="">--Žádný--</option>'+opts; }
+  if(selShaft){ selShaft.innerHTML='<option value="">--Vyberte nůž--</option>'+opts; }
+  if(selFilter){ selFilter.innerHTML='<option value="">Všechny nože (projekty)</option>'+opts; }
+}
+
+function drawMiniShaftPreview(canvas, points){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  if(!points || points.length < 2){
+    ctx.fillStyle='#64748b'; ctx.font='12px system-ui'; ctx.textAlign='center';
+    ctx.fillText('Žádná data', w/2, h/2); return;
+  }
+  const xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  const minX=Math.min(...xs,0), maxX=Math.max(...xs, Math.max(...xs)*1.1||40);
+  const maxY=Math.max(...ys,1);
+  const pad=14;
+  const scale=Math.min((w-2*pad)/(maxX-minX||1), (h-2*pad)/(maxY*2.2||1));
+  const midY=h/2 + maxY*scale*0.15;
+  ctx.strokeStyle='#1e293b'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,midY); ctx.lineTo(w-pad,midY); ctx.stroke();
+  ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2; ctx.beginPath();
+  points.forEach((p,i)=>{
+    const x=pad+(p.x-minX)*scale; const y=midY-p.y*scale;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  ctx.fillStyle='#38bdf8';
+  points.forEach(p=>{
+    const x=pad+(p.x-minX)*scale; const y=midY-p.y*scale;
+    ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
+  });
+}
+
+function drawMiniToolPreview(canvas, points){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  if(!points || points.length < 3){
+    ctx.fillStyle='#64748b'; ctx.font='12px system-ui'; ctx.textAlign='center';
+    ctx.fillText('Žádná data', w/2, h/2); return;
+  }
+  const xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const pad=14;
+  const scale=Math.min((w-2*pad)/(maxX-minX||1), (h-2*pad)/(maxY-minY||1));
+  const offX=pad-minX*scale, offY=pad-minY*scale;
+  ctx.strokeStyle='#f87171'; ctx.lineWidth=2; ctx.beginPath();
+  points.forEach((p,i)=>{
+    const x=offX+p.x*scale, y=offY+p.y*scale;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  if(points.length>2) ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle='rgba(248,113,113,0.12)'; ctx.fill();
+}
+
+window.renderDashboard = function(){
+  populateToolSelects();
+  const qProj = (document.getElementById('searchProjects')?.value||'').toLowerCase();
+  const fProjTool = document.getElementById('filterProjectTool')?.value||'';
+  const qTool = (document.getElementById('searchTools')?.value||'').toLowerCase();
+  const fToolCat = document.getElementById('filterToolCategory')?.value||'';
+
+  // Projekty - vždy plně překreslit (žádné reuse DOM elementů)
+  const projects = getProjects();
+  const gridP = document.getElementById('projectGrid');
+  // Odstranit všechny existující karty pro vynucení nového renderu
+  while(gridP.firstChild) gridP.removeChild(gridP.firstChild);
+  projects.forEach(proj=>{
+    const tool = getTools().find(t=>t.id===proj.toolId);
+    if(qProj && !proj.name.toLowerCase().includes(qProj)) return;
+    if(fProjTool && proj.toolId!==fProjTool) return;
+    const pos = proj.positions || [];
+    const updated = proj.updatedAt ? new Date(proj.updatedAt).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
+    const card = document.createElement('div'); card.className='dash-card';
+    const posButtons = pos.map((p,idx)=>`<button class="pos-btn" onclick="openShaftEditor('${proj.id}','${p.id}')" title="${p.name||'Poloha '+(idx+1)}">${idx+1}</button>`).join('');
+    const firstPos = pos[0];
+    card.innerHTML = `
+      <button class="menu-btn" onclick="toggleProjectMenu('${proj.id}',event)">⋮</button>
+      <div class="dropdown" id="proj-menu-${proj.id}">
+        <button onclick="dashAddPosition('${proj.id}')">➕ Přidat polohu</button>
+        <button onclick="dashDeletePosition('${proj.id}')">🗑️ Smazat polohu</button>
+        <button onclick="dashRenameProject('${proj.id}')">✏️ Přejmenovat</button>
+        <button onclick="dashCopyProject('${proj.id}')">📋 Kopírovat projekt</button>
+        <button class="danger" onclick="dashDeleteProject('${proj.id}')">🗑️ Smazat projekt</button>
+      </div>
+      <div class="preview-wrap" style="margin-bottom:10px"></div>
+      <h4>${escapeHtml(proj.name)}</h4>
+      <div class="meta">Upraveno: ${updated} &nbsp;|&nbsp; Poloh: ${pos.length} &nbsp;|&nbsp; Nůž: ${tool?escapeHtml(tool.name):'—'}</div>
+      <div class="positions">${posButtons}</div>
+    `;
+    const pw = card.querySelector('.preview-wrap');
+    if(pw) {
+      if(proj.thumbnail) {
+        const img = document.createElement('img');
+        img.className = 'preview';
+        img.style.cssText = 'object-fit:cover;background:#020408;width:100%;height:170px;border-radius:10px;border:1px solid var(--border);display:block;';
+        img.alt = '3D náhled';
+        img.src = proj.thumbnail;
+        pw.appendChild(img);
+      } else {
+        const cvs = document.createElement('canvas');
+        cvs.className = 'preview';
+        cvs.width = 560; 
+        cvs.height = 340;
+        drawMiniShaftPreview(cvs, firstPos?.targetPoints || []);
+        pw.appendChild(cvs);
+      }
+    }
+    gridP.appendChild(card);
+  });
+  if(!gridP.children.length) gridP.innerHTML='<div style="color:var(--muted);padding:10px 0">Žádné projekty neodpovídají filtru.</div>';
+
+  // Nože - vždy plně překreslit
+  const tools = getTools();
+  const gridT = document.getElementById('toolGrid');
+  while(gridT.firstChild) gridT.removeChild(gridT.firstChild);
+  tools.forEach(tool=>{
+    if(qTool && !tool.name.toLowerCase().includes(qTool)) return;
+    if(fToolCat && tool.category!==fToolCat) return;
+    const updated = tool.updatedAt ? new Date(tool.updatedAt).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
+    const catLabels = {rough:'Hrubovací',finish:'Dokončovací',thread:'Závitový',groove:'Zápichový'};
+    const card = document.createElement('div'); card.className='dash-card';
+    const cvs = document.createElement('canvas'); cvs.className='preview'; cvs.width=560; cvs.height=340;
+    drawMiniToolPreview(cvs, tool.points||[]);
+    card.innerHTML = `
+      <button class="menu-btn" onclick="toggleToolMenu('${tool.id}',event)">⋮</button>
+      <div class="dropdown" id="tool-menu-${tool.id}">
+        <button onclick="openToolEditor('${tool.id}')">✏️ Upravit</button>
+        <button onclick="dashRenameTool('${tool.id}')">✏️ Přejmenovat</button>
+        <button onclick="dashCopyTool('${tool.id}')">📋 Kopírovat</button>
+        <button class="danger" onclick="dashDeleteTool('${tool.id}')">🗑️ Smazat</button>
+      </div>
+      <div class="preview-wrap" style="margin-bottom:10px"></div>
+      <h4>${escapeHtml(tool.name)}</h4>
+      <div class="meta">Upraveno: ${updated}</div>
+      <div class="tool-meta">
+        <span>${catLabels[tool.category]||tool.category}</span>
+        <span>R ${(tool.tipRadius??0).toFixed(2)} mm</span>
+      </div>
+    `;
+    card.querySelector('.preview-wrap').appendChild(cvs);
+    card.addEventListener('dblclick',()=>openToolEditor(tool.id));
+    gridT.appendChild(card);
+  });
+  if(!gridT.children.length) gridT.innerHTML='<div style="color:var(--muted);padding:10px 0">Žádné nože neodpovídají filtru.</div>';
+};
+
+function escapeHtml(text){
+  const div=document.createElement('div'); div.textContent=text; return div.innerHTML;
+}
+
+window.toggleProjectMenu = function(id,e){ e.stopPropagation(); const dd=document.getElementById('proj-menu-'+id); document.querySelectorAll('.dash-card .dropdown.active').forEach(d=>{if(d!==dd)d.classList.remove('active');}); dd.classList.toggle('active'); };
+window.toggleToolMenu = function(id,e){ e.stopPropagation(); const dd=document.getElementById('tool-menu-'+id); document.querySelectorAll('.dash-card .dropdown.active').forEach(d=>{if(d!==dd)d.classList.remove('active');}); dd.classList.toggle('active'); };
+window.addEventListener('click',()=>{ document.querySelectorAll('.dash-card .dropdown.active').forEach(d=>d.classList.remove('active')); });
+
+window.createProject = function(){
+  const name = document.getElementById('newProjectName').value.trim();
+  const toolId = document.getElementById('newProjectTool').value;
+  if(!name){ showToast('Zadejte název projektu','warning'); return; }
+  const proj = {
+    id: generateId(), name, toolId: toolId||null,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    positions: [{ id: generateId(), name: 'Poloha 1', targetPoints: [{x:0,y:5},{x:15,y:5},{x:15,y:9},{x:35,y:9}], params: {}, gcode:'', compensatedProfile:[] }]
+  };
+  const arr = getProjects(); arr.unshift(proj); saveProjects(arr);
+  closeDashModal('modal-new-project');
+  document.getElementById('newProjectName').value='';
+  renderDashboard();
+  openShaftEditor(proj.id, proj.positions[0].id);
+};
+
+window.createTool = function(){
+  const name = document.getElementById('newToolName').value.trim();
+  const category = document.getElementById('newToolCategory').value;
+  const tipRadius = parseFloat(document.getElementById('newToolRadius').value)||0;
+  if(!name){ showToast('Zadejte název nože','warning'); return; }
+  const tool = {
+    id: generateId(), name, category, tipRadius,
+    points: [{x:0.55,y:16.25},{x:0.55,y:11.35},{x:0.5,y:7.65},{x:0.45,y:3.65},{x:0.35,y:3.5},{x:0.2,y:3.45},{x:0.1,y:1.75},{x:0.06,y:1},{x:0,y:0.16},{x:0,y:0.06},{x:0.04,y:0},{x:0.12,y:0.01},{x:0.2,y:0.06},{x:0.31,y:0.13},{x:0.66,y:0.35},{x:1.48,y:0.85},{x:1.52,y:0.93},{x:2.65,y:1.6},{x:2.72,y:6.81},{x:2.75,y:16.27}],
+    holderPoints: [],
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+  };
+  const arr = getTools(); arr.unshift(tool); saveTools(arr);
+  closeDashModal('modal-new-tool');
+  document.getElementById('newToolName').value='';
+  renderDashboard();
+  openToolEditor(tool.id);
+};
+
+window.dashAddPosition = function(projId){
+  const arr = getProjects();
+  const proj = arr.find(p=>p.id===projId);
+  if(!proj) return;
+  const newPos = { id: generateId(), name: 'Poloha '+(proj.positions.length+1), targetPoints: [{x:0,y:5},{x:15,y:5},{x:15,y:9},{x:35,y:9}], params:{}, gcode:'', compensatedProfile:[] };
+  proj.positions.push(newPos);
+  proj.updatedAt = new Date().toISOString();
+  saveProjects(arr);
+  renderDashboard();
+  showToast('Poloha přidána','success');
+};
+
+window.dashRenameProject = async function(projId){
+  const arr = getProjects(); const proj = arr.find(p=>p.id===projId); if(!proj) return;
+  const name = await showPrompt('Nový název projektu:', proj.name);
+  if(name===null) return;
+  proj.name = name.trim()||proj.name;
+  proj.updatedAt = new Date().toISOString();
+  saveProjects(arr); renderDashboard();
+};
+
+window.dashCopyProject = function(projId){
+  const arr = getProjects(); const proj = arr.find(p=>p.id===projId); if(!proj) return;
+  const copy = JSON.parse(JSON.stringify(proj));
+  copy.id = generateId();
+  copy.name = copy.name + ' (kopie)';
+  copy.positions.forEach(p=>{ p.id = generateId(); });
+  copy.createdAt = new Date().toISOString();
+  copy.updatedAt = new Date().toISOString();
+  // Zachovat thumbnail v kopii
+  arr.unshift(copy);
+  saveProjects(arr); renderDashboard();
+  showToast('Projekt zkopírován','success');
+};
+
+window.dashDeleteProject = async function(projId){
+  const arr = getProjects(); const proj = arr.find(p=>p.id===projId); if(!proj) return;
+  if(await showConfirm(`Smazat projekt „${proj.name}"?`)){
+    const filtered = arr.filter(p=>p.id!==projId);
+    saveProjects(filtered); renderDashboard();
+    showToast('Projekt smazán','info');
+  }
+};
+
+let _pendingDeletePositionProjId = null;
+
+window.dashDeletePosition = function(projId){
+  const arr = getProjects();
+  const proj = arr.find(p=>p.id===projId);
+  if(!proj || !proj.positions || proj.positions.length===0){
+    showToast('Projekt nemá žádné polohy','warning'); return;
+  }
+  if(proj.positions.length===1){
+    showToast('Projekt musí mít alespoň jednu polohu','warning'); return;
+  }
+  _pendingDeletePositionProjId = projId;
+  const sel = document.getElementById('deletePositionSelect');
+  sel.innerHTML = '';
+  proj.positions.forEach((pos, idx)=>{
+    const opt = document.createElement('option');
+    opt.value = pos.id;
+    opt.textContent = `${idx+1}. ${pos.name || 'Poloha '+(idx+1)}`;
+    sel.appendChild(opt);
+  });
+  openDashModal('modal-delete-position');
+};
+
+window.confirmDeletePosition = async function(){
+  const sel = document.getElementById('deletePositionSelect');
+  const posId = sel.value;
+  if(!posId || !_pendingDeletePositionProjId) return;
+  const arr = getProjects();
+  const proj = arr.find(p=>p.id===_pendingDeletePositionProjId);
+  const pos = proj?.positions?.find(p=>p.id===posId);
+  if(!pos){ closeDashModal('modal-delete-position'); _pendingDeletePositionProjId = null; return; }
+  // nejprve zavrit vyberovy modal, pak az potvrdit smazani
+  closeDashModal('modal-delete-position');
+  await new Promise(r=>setTimeout(r,250));
+  if(await showConfirm(`Smazat polohu „${pos.name || 'Poloha'}"?`)){
+    proj.positions = proj.positions.filter(p=>p.id!==posId);
+    proj.updatedAt = new Date().toISOString();
+    saveProjects(arr);
+    renderDashboard();
+    showToast('Poloha smazána','info');
+  }
+  _pendingDeletePositionProjId = null;
+};
+
+window.dashRenameTool = async function(toolId){
+  const arr = getTools(); const tool = arr.find(t=>t.id===toolId); if(!tool) return;
+  const name = await showPrompt('Nový název nože:', tool.name);
+  if(name===null) return;
+  tool.name = name.trim()||tool.name;
+  tool.updatedAt = new Date().toISOString();
+  saveTools(arr); renderDashboard();
+};
+
+window.dashCopyTool = function(toolId){
+  const arr = getTools(); const tool = arr.find(t=>t.id===toolId); if(!tool) return;
+  const copy = JSON.parse(JSON.stringify(tool));
+  copy.id = generateId();
+  copy.name = copy.name + ' (kopie)';
+  copy.createdAt = new Date().toISOString();
+  copy.updatedAt = new Date().toISOString();
+  arr.unshift(copy);
+  saveTools(arr); renderDashboard();
+  showToast('Nůž zkopírován','success');
+};
+
+window.dashDeleteTool = async function(toolId){
+  const arr = getTools(); const tool = arr.find(t=>t.id===toolId); if(!tool) return;
+  if(await showConfirm(`Smazat nůž „${tool.name}"?`)){
+    const filtered = arr.filter(t=>t.id!==toolId);
+    saveTools(filtered); renderDashboard();
+    showToast('Nůž smazán','info');
+  }
+};
+
+window.exportDatabase = function(){
+  const db = { version: 2, exportedAt: new Date().toISOString(), projects: getProjects(), tools: getTools() };
+  const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cnc_database_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Databáze exportována','success');
+};
+
+window.importDatabase = function(){ document.getElementById('importDbFile').click(); };
+window.handleImportDb = async function(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev)=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!Array.isArray(data.projects) || !Array.isArray(data.tools)) throw new Error('Neplatný formát databáze');
+      if(await showConfirm(`Importovat ${data.projects.length} projektů a ${data.tools.length} nožů? Přepíše to stávající data.`)){
+        saveProjects(data.projects);
+        saveTools(data.tools);
+        renderDashboard();
+        showToast('Import databáze dokončen','success');
+      }
+    }catch(err){ showToast('Chyba importu: '+err.message,'error',5000); }
+    input.value='';
+  };
+  reader.readAsText(file);
+};
+
+// ═══════════════════════════════════════
+//  EDITOR HŘÍDELE (otevírání / ukládání)
+// ═══════════════════════════════════════
+let shaftEditorInited = false;
+window.openShaftEditor = function(projId, posId){
+  const proj = getProjects().find(p=>p.id===projId);
+  const pos = proj?.positions?.find(p=>p.id===posId);
+  if(!proj || !pos){ showToast('Projekt/poloha nenalezena','error'); return; }
+  currentProjectId = projId;
+  currentPositionId = posId;
+  document.getElementById('shaftEditorTitle').textContent = escapeHtml(proj.name);
+  document.getElementById('shaftEditorBreadcrumb').textContent = `Poloha: ${pos.name||posId}`;
+  // Reset G-code stavu před načtením nové polohy
+  currentGcodeLines = [];
+  window._toolPreviewX = undefined;
+  window._toolPreviewY = undefined;
+  playState.currentLineIdx = 0;
+  if(playState.active) stopPlayback();
+  // Načíst body
+  targetPoints.length = 0;
+  if(pos.targetPoints && pos.targetPoints.length) targetPoints.push(...pos.targetPoints);
+  else targetPoints.push({x:0,y:5},{x:15,y:5},{x:15,y:9},{x:35,y:9});
+  // Načíst parametry
+  if(pos.params){
+    const p=pos.params;
+    const set=(id,v)=>{ if(v!==undefined && document.getElementById(id)) document.getElementById(id).value=v; };
+    set('startDia', p.startDia); set('feed', p.feed); set('feedDokonceni', p.feedDokonceni); set('stepRad', p.stepRad);
+    set('retractRad', p.retractRad); set('dokonceni', p.dokonceni); set('knife', p.knife); set('mode', p.mode);
+    set('stepX', p.stepX); set('stepY', p.stepY); set('snapSize', p.snapSize);
+  }
+  // Načíst G-code do textarea a currentGcodeLines
+  const output = document.getElementById('output');
+  if(output){
+    const gcode = pos.gcode || '';
+    output.value = gcode;
+    currentGcodeLines = gcode.split("\n").filter(l => l.trim() !== "");
+  }
+  // Načíst nůž pro simulaci
+  if(proj.toolId){
+    const tool = getTools().find(t=>t.id===proj.toolId);
+    if(tool && tool.points){
+      toolPoints.length = 0;
+      toolPoints.push(...tool.points);
+      holderPoints.length = 0;
+      if(tool.holderPoints) holderPoints.push(...tool.holderPoints);
+      const sel = document.getElementById('shaftToolSelect');
+      if(sel) sel.value = proj.toolId;
+    }
+  }
+  updateDataRange(targetPoints, true);
+  syncTableFromTarget();
+  compensatedProfile = pos.compensatedProfile || [];
+  showPage('shaft');
+  // Aktualizovat čísla řádků a překreslit
+  updateLineNumbers();
+  drawAll();
+};
+
+window.saveCurrentPosition = function(){
+  if(!currentProjectId || !currentPositionId) return;
+  const arr = getProjects();
+  const proj = arr.find(p=>p.id===currentProjectId);
+  const pos = proj?.positions?.find(p=>p.id===currentPositionId);
+  if(!proj || !pos) return;
+  pos.targetPoints = targetPoints.map(p=>({x:p.x,y:p.y}));
+  pos.compensatedProfile = compensatedProfile.map(p=>({x:p.x,y:p.y}));
+  pos.params = {
+    startDia: document.getElementById('startDia')?.value,
+    feed: document.getElementById('feed')?.value,
+    feedDokonceni: document.getElementById('feedDokonceni')?.value,
+    stepRad: document.getElementById('stepRad')?.value,
+    retractRad: document.getElementById('retractRad')?.value,
+    dokonceni: document.getElementById('dokonceni')?.value,
+    knife: document.getElementById('knife')?.value,
+    mode: document.getElementById('mode')?.value,
+    stepX: document.getElementById('stepX')?.value,
+    stepY: document.getElementById('stepY')?.value,
+    snapSize: document.getElementById('snapSize')?.value,
+  };
+  pos.gcode = document.getElementById('output')?.value || '';
+  // Uložit base64 screenshot z 3D vieweru do projektu (jen jeden thumbnail na projekt)
+  try {
+    const viewer3d = document.getElementById('viewer3d');
+    const canvas3d = viewer3d?.querySelector('canvas');
+    if(canvas3d) {
+      const base64 = canvas3d.toDataURL('image/png');
+      const nocache = Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+      proj.thumbnail = base64 + '#nocache=' + nocache;
+    }
+  } catch(e) { /* WebGL může blokovat toDataURL */ }
+  proj.updatedAt = new Date().toISOString();
+  saveProjects(arr);
+  showToast('Poloha uložena','success');
+};
+
+
+
+function initShaftEditor(){
+  if(shaftEditorInited){
+    drawAll();
+    showLathe3D();
+    return;
+  }
+  targetCanvas=document.getElementById("targetCanvas");
+  targetCtx=targetCanvas.getContext("2d");
+  function resize(){
+    // Kontrola viditelnosti stránky - nekreslit když je skrytá
+    if(!document.getElementById('page-shaft')?.classList.contains('active')) return;
+    const wT=targetCanvas.parentElement.clientWidth;
+    if(wT === 0) return; // Rodič je skrytý, nezměňovat rozměry
+    targetCanvas.width=wT*devicePixelRatio; targetCanvas.height=400*devicePixelRatio;
+    drawAll();
+  }
+  window.addEventListener("resize",resize);
+  // Odložit první resize až po zobrazení stránky
+  requestAnimationFrame(()=>{ requestAnimationFrame(resize); });
+  attachCanvasEvents(targetCanvas,targetPoints,targetDrag,true);
+  targetCanvas.addEventListener("mouseup", showLathe3D);
+  targetCanvas.addEventListener("dblclick", showLathe3D);
+  setupGcodePreview();
+  setupLineNumbers();
+  shaftEditorInited = true;
+  drawAll();
+  showLathe3D();
+}
+
+// ═══════════════════════════════════════
+//  EDITOR NOŽE (otevírání / ukládání)
+// ═══════════════════════════════════════
+let toolEditorInited = false;
+window.openToolEditor = function(toolId){
+  const tool = getTools().find(t=>t.id===toolId);
+  if(!tool){ showToast('Nůž nenalezen','error'); return; }
+  currentToolId = toolId;
+  document.getElementById('toolEditorTitle').textContent = escapeHtml(tool.name);
+  toolPoints.length = 0;
+  if(tool.points && tool.points.length) toolPoints.push(...tool.points);
+  else toolPoints.push({x:0.55,y:16.25},{x:0.55,y:11.35},{x:0.5,y:7.65},{x:0.45,y:3.65},{x:0.35,y:3.5},{x:0.2,y:3.45},{x:0.1,y:1.75},{x:0.06,y:1},{x:0,y:0.16},{x:0,y:0.06},{x:0.04,y:0},{x:0.12,y:0.01},{x:0.2,y:0.06},{x:0.31,y:0.13},{x:0.66,y:0.35},{x:1.48,y:0.85},{x:1.52,y:0.93},{x:2.65,y:1.6},{x:2.72,y:6.81},{x:2.75,y:16.27});
+  holderPoints.length = 0;
+  if(tool.holderPoints) holderPoints.push(...tool.holderPoints);
+  updateDataRange(toolPoints, false);
+  showPage('tool');
+};
+
+window.saveCurrentTool = function(){
+  if(!currentToolId) return;
+  const arr = getTools();
+  const tool = arr.find(t=>t.id===currentToolId);
+  if(!tool) return;
+  tool.points = toolPoints.map(p=>({x:p.x,y:p.y}));
+  tool.holderPoints = holderPoints.map(p=>({x:p.x,y:p.y}));
+  tool.updatedAt = new Date().toISOString();
+  saveTools(arr);
+  showToast('Nůž uložen do knihovny','success');
+  populateToolSelects();
+};
+
+function initToolEditor(){
+  if(toolEditorInited){ drawAll(); return; }
+  toolCanvas=document.getElementById("toolCanvas");
+  toolCtx=toolCanvas.getContext("2d");
+  function resize(){
+    // Kontrola viditelnosti stránky - nekreslit když je skrytá
+    if(!document.getElementById('page-tool')?.classList.contains('active')) return;
+    const wTool=toolCanvas.parentElement.clientWidth;
+    if(wTool === 0) return; // Rodič je skrytý, nezměňovat rozměry
+    toolCanvas.width=wTool*devicePixelRatio; toolCanvas.height=400*devicePixelRatio;
+    drawAll();
+  }
+  window.addEventListener("resize",resize);
+  // Odložit první resize až po zobrazení stránky
+  requestAnimationFrame(()=>{ requestAnimationFrame(resize); });
+  attachCanvasEvents(toolCanvas,toolPoints,toolDrag,false);
+  toolEditorInited = true;
+  drawAll();
+}
+
+// ═══════════════════════════════════════
+//  PŮVODNÍ GLOBÁLNÍ DATA A FUNKCE
+// ═══════════════════════════════════════
+let targetPoints = [];
+let toolPoints = [];
+let holderPoints = [];
+let toolDrawMode = 'knife';
+let compensatedProfile = [];
+let stepX = 0.2, stepY = 0.02;
+let currentGcodeLines = [];
+let gcodePassSegments = [];
+let undercuts = [];
+
+let targetCanvas, toolCanvas, targetCtx, toolCtx;
+let targetParams = null, toolParams = null;
+
+let targetDrag = { active: false, idx: -1, startX: 0, startY: 0, origX: 0, origY: 0 };
+let toolDrag   = { active: false, idx: -1, startX: 0, startY: 0, origX: 0, origY: 0 };
+
+let targetSelected = new Set();
+let toolSelected   = new Set();
+let activeSelRect  = null;
+let groupDrag      = null;
+
+let toolBgImage  = null;
+let imgMoveActive = false;
+let imgDragState  = null;
+let radiusModeActive = false;
+let updatingTable = false;
+let pendingRadius = null;
+let grooveModeActive = false;
+let pendingGroove = null;
+let grooveGhost = null;
+
+const targetVP = { x: 0, y: 0, scale: 1 };
+const toolVP   = { x: 0, y: 0, scale: 1 };
+let panState = null;
+
+let targetDataRange = { minX: 0, maxX: 40, maxR: 10 };
+let toolDataRange   = { minX: -2, maxX: 2, maxR: 10 };
+
+function cssVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#fff';
+}
+
+function screenToBase(canvas, sx, sy, vp) {
+  return { x: (sx - vp.x) / vp.scale, y: (sy - vp.y) / vp.scale };
+}
+function applyVP(ctx, vp) {
+  ctx.setTransform(vp.scale, 0, 0, vp.scale, vp.x, vp.y);
+}
+function zoomVP(canvas, vp, sx, sy, factor) {
+  const base = screenToBase(canvas, sx, sy, vp);
+  vp.scale *= factor;
+  vp.x = sx - base.x * vp.scale;
+  vp.y = sy - base.y * vp.scale;
+}
+window.resetVP = function(vp, canvas, isTarget) {
+  const points = isTarget ? targetPoints : toolPoints;
+  const params = getCanvasParams(canvas, isTarget);
+  if (!params || points.length === 0) {
+    vp.x = 0; vp.y = 0; vp.scale = 1;
+    drawAll(); return;
+  }
+  const cps = points.map(p => worldToCanvas(canvas, p, params));
+  let x0 = Math.min(...cps.map(p => p.x));
+  let x1 = Math.max(...cps.map(p => p.x));
+  let y0 = Math.min(...cps.map(p => p.y));
+  let y1 = Math.max(...cps.map(p => p.y));
+  if (isTarget) y1 = Math.max(y1, params.midY);
+  const contentW = x1 - x0 || 1;
+  const contentH = y1 - y0 || 1;
+  const pad = 48;
+  const scaleX = (canvas.width  - 2 * pad) / contentW;
+  const scaleY = (canvas.height - 2 * pad) / contentH;
+  const newScale = Math.min(scaleX, scaleY, 8);
+  const cx = (x0 + x1) / 2;
+  const cy = (y0 + y1) / 2;
+  vp.scale = newScale;
+  vp.x = canvas.width  / 2 - cx * newScale;
+  vp.y = canvas.height / 2 - cy * newScale;
+  drawAll();
+};
+
+function updateDataRange(points, isTarget) {
+  const xs = points.length ? points.map(p => p.x) : [0, 40];
+  const ys = points.length ? points.map(p => p.y) : [0, 5];
+  const minX = Math.min(...xs, 0);
+  const maxX = Math.max(...xs, 40);
+  const startRad = isTarget ? parseFloat(document.getElementById("startDia")?.value||20) / 2 : 0;
+  const maxR = Math.max(...ys, startRad, 2);
+  if (isTarget) targetDataRange = { minX, maxX, maxR };
+  else toolDataRange = { minX, maxX, maxR };
+}
+
+function getMirroredToolPoints() {
+  const knife = document.getElementById("knife")?.value || "left";
+  if (knife !== "right") return toolPoints.map(p => ({ x: p.x, y: p.y }));
+  return toolPoints.map(p => ({ x: -p.x, y: p.y }));
+}
+function getMirroredPoints(pts) {
+  const knife = document.getElementById("knife")?.value || "left";
+  if (knife !== "right") return pts.map(p => ({ x: p.x, y: p.y }));
+  return pts.map(p => ({ x: -p.x, y: p.y }));
+}
+
+function pointInPolygon(px, py, vert) {
+  let inside=false;
+  for(let i=0,j=vert.length-1;i<vert.length;j=i++){
+    const xi=vert[i].x,yi=vert[i].y,xj=vert[j].x,yj=vert[j].y;
+    const intersect=((yi>py)!=(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi);
+    if(intersect) inside=!inside;
+  }
+  return inside;
+}
+function orient(p,q,r){let v=(q.y-p.y)*(r.x-q.x)-(q.x-p.x)*(r.y-q.y);return Math.abs(v)<1e-9?0:(v>0?1:2);}
+function onSeg(p,q,r){return q.x<=Math.max(p.x,r.x)&&q.x>=Math.min(p.x,r.x)&&q.y<=Math.max(p.y,r.y)&&q.y>=Math.min(p.y,r.y);}
+function segIntersect(p1,p2,p3,p4){
+  let o1=orient(p1,p2,p3),o2=orient(p1,p2,p4),o3=orient(p3,p4,p1),o4=orient(p3,p4,p2);
+  if(o1!==o2 && o3!==o4) return true;
+  if(o1===0 && onSeg(p1,p3,p2)) return true;
+  if(o2===0 && onSeg(p1,p4,p2)) return true;
+  if(o3===0 && onSeg(p3,p1,p4)) return true;
+  if(o4===0 && onSeg(p3,p2,p4)) return true;
+  return false;
+}
+function polygonsCollide(pA,pB){
+  for(let p of pA) if(pointInPolygon(p.x,p.y,pB)) return true;
+  for(let p of pB) if(pointInPolygon(p.x,p.y,pA)) return true;
+  for(let i=0;i<pA.length;i++){
+    const a1=pA[i],a2=pA[(i+1)%pA.length];
+    for(let j=0;j<pB.length;j++){
+      const b1=pB[j],b2=pB[(j+1)%pB.length];
+      if(segIntersect(a1,a2,b1,b2)) return true;
+    }
+  }
+  return false;
+}
+// ── Generátor ISO nože ────────────────────────────────────────────────────────
+const INSERT_SHAPES = {
+  H: { noseAngle: 120, name: 'Hexagon 120°' },
+  O: { noseAngle: 135, name: 'Octagon 135°' },
+  P: { noseAngle: 108, name: 'Pentagon 108°' },
+  S: { noseAngle: 90,  name: 'Čtverec 90°' },
+  C: { noseAngle: 80,  name: 'Kosočtverec 80°' },
+  E: { noseAngle: 75,  name: 'Kosočtverec 75°' },
+  M: { noseAngle: 86,  name: 'Kosočtverec 86°' },
+  D: { noseAngle: 55,  name: 'Kosočtverec 55°' },
+  V: { noseAngle: 35,  name: 'Kosočtverec 35°' },
+  T: { noseAngle: 60,  name: 'Trojúhelník 60°' },
+  W: { noseAngle: 80,  name: 'Trigon 80°' },
+  R: { noseAngle: null, name: 'Kulatý' },
+};
+
+const INSERT_CLEARANCE = { A:3, B:5, C:7, D:15, E:20, F:25, G:30, N:0, P:11 };
+
+function parseInsertCode(code) {
+  code = code.toUpperCase().replace(/\s/g, '');
+  if (code.length < 6) return null;
+  const shape = code[0];
+  if (!INSERT_SHAPES[shape]) return null;
+  return {
+    shape,
+    clearance:    INSERT_CLEARANCE[code[1]] ?? 7,
+    tolerance:    code[2] || '?',
+    form:         code[3] || '?',
+    size:         parseFloat(code.substr(4, 2)) || 7,
+    thickness:    parseFloat(code.substr(6, 2)) || 2,
+    cornerRadius: (parseFloat(code.substr(8, 2)) || 4) / 10,
+  };
+}
+
+function describeInsert(p) {
+  if (!p) return '';
+  const s = INSERT_SHAPES[p.shape];
+  return [
+    `Tvar: ${p.shape} – ${s.name}`,
+    `Úhel hřbetu: ${p.clearance}°`,
+    `IC: ${p.size} mm`,
+    `Tloušťka: ${p.thickness} mm`,
+    `Rádius špičky: ${p.cornerRadius} mm`,
+  ].join(' | ');
+}
+
+function generateInsertPolygon(shapeCode, ic_mm, cr, clearance_deg = 7) {
+  const shapeInfo = INSERT_SHAPES[shapeCode];
+  if (!shapeInfo) return null;
+
+  // Kulatý insert
+  if (shapeCode === 'R') {
+    const r = ic_mm / 2;
+    const bodyH = Math.max(r * 2.5, 14);
+    const pts = [];
+    const N = 32;
+    for (let i = 0; i <= N; i++) {
+      const a = Math.PI + (Math.PI * i / N); // 180° → 360° přes nos
+      pts.push({ x: r + r * Math.cos(a), y: r + r * Math.sin(a) });
+    }
+    pts.unshift({ x: r, y: bodyH });
+    pts.push({ x: r + 2 * r, y: bodyH });
+    return { tool: pts, holder: null };
+  }
+
+  const na_rad = shapeInfo.noseAngle * Math.PI / 180;
+  const cl_rad = clearance_deg     * Math.PI / 180;
+
+  // ── Střed oblouku ────────────────────────────────────────────────────────────
+  // Oblouk je tečný k oběma řezným hranám (vedoucí + odcházející).
+  // Vedoucí hrana: od osy Y, směr (sin cl, cos cl)  → clearance od Y
+  // Odcházející hrana: zajišťuje úhel špičky = na   → β = 90° − cl − na
+  //   direction = (cos β, sin β) = (sin(cl+na), cos(cl+na))
+  //
+  // Střed:   cx = cr · cos(cl)
+  //          cy = cr · sin(cl + na)
+  const cx = cr * Math.cos(cl_rad);
+  const cy = cr * Math.sin(cl_rad + na_rad);
+
+  // Bod dotyku s vedoucí hranou leží na ose Y: (0, cy + cr·sin(π−cl)) = (0, y_L)
+  //   y_L = cr · (sin(cl+na) + sin(cl))
+  const yL = cr * (Math.sin(cl_rad + na_rad) + Math.sin(cl_rad));
+
+  // Bod dotyku s odcházející hranou leží na ose X: (xT, 0)
+  //   xT = cr · (cos(cl) + cos(cl+na))
+  const xT = cr * (Math.cos(cl_rad) + Math.cos(cl_rad + na_rad));
+
+  // ── Arc ──────────────────────────────────────────────────────────────────────
+  // Start: π − cl_rad  (tečna s vedoucí hranou, bod (0, yL))
+  // Sweep: π − na_rad  (CCW, prochází nosem – levým dolním rohem)
+  const arcStart = Math.PI - cl_rad;
+  const arcSweep = Math.PI - na_rad;
+
+  // ── Směry hran ───────────────────────────────────────────────────────────────
+  const leadDir  = { x: Math.sin(cl_rad),           y: Math.cos(cl_rad)           };
+  const trailDir = { x: Math.sin(cl_rad + na_rad),  y: Math.cos(cl_rad + na_rad)  };
+
+  // ── Délky a tělo ─────────────────────────────────────────────────────────────
+  const edgeLen  = ic_mm * 0.72;
+  const bodyH    = Math.max(ic_mm * 2.8, 14);
+
+  const leadEnd  = { x: 0  + edgeLen * leadDir.x,   y: yL + edgeLen * leadDir.y  };
+  const trailEnd = { x: xT + edgeLen * trailDir.x,  y: 0  + edgeLen * trailDir.y };
+  const bodyRight = Math.max(trailEnd.x, leadEnd.x) + 0.5;
+
+  // ── Polygon nože ─────────────────────────────────────────────────────────────
+  const tool = [];
+  tool.push({ x: leadEnd.x, y: bodyH });   // vlevo nahoře
+  tool.push(leadEnd);                        // konec vedoucí hrany
+
+  // Oblouk od dotyku vedoucí hrany CCW přes nos k dotyku odcházející hrany
+  const N_ARC = 20;
+  for (let i = 0; i <= N_ARC; i++) {
+    const a = arcStart + arcSweep * i / N_ARC;
+    tool.push({ x: cx + cr * Math.cos(a), y: cy + cr * Math.sin(a) });
+  }
+
+  tool.push(trailEnd);
+  tool.push({ x: bodyRight, y: trailEnd.y + 0.3 });
+  tool.push({ x: bodyRight, y: bodyH });
+
+  // ── Posun: skutečný nejlevější a nejnižší bod polygonu → na 0 ─────────────────
+  const minX = Math.min(...tool.map(p => p.x));
+  const minY = Math.min(...tool.map(p => p.y));
+  const shift = pts => pts.map(p => ({ x: p.x - minX, y: p.y - minY }));
+
+  // ── Polygon držáku ───────────────────────────────────────────────────────────
+  const holderH = 12;
+  const holder = [
+    { x: leadEnd.x - 0.3, y: bodyH },
+    { x: leadEnd.x - 0.3, y: bodyH + holderH },
+    { x: bodyRight + 1,   y: bodyH + holderH },
+    { x: bodyRight + 1,   y: bodyH },
+  ];
+
+  return { tool: shift(tool), holder: shift(holder) };
+}
+
+function applyInsertToCanvas(result, includeHolder) {
+  if (!result) return;
+  toolPoints.length = 0;
+  toolPoints.push(...result.tool);
+  holderPoints.length = 0;
+  if (includeHolder && result.holder) holderPoints.push(...result.holder);
+  updateDataRange(toolPoints, false);
+  compensatedProfile = [];
+  drawAll();
+  resetVP(toolVP, toolCanvas, false);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getClosedTargetPolygon(){
+  if(targetPoints.length<2) return [];
+  const closed=[...targetPoints];
+  const last=targetPoints[targetPoints.length-1];
+  const first=targetPoints[0];
+  closed.push({x:last.x,y:0});
+  closed.push({x:first.x,y:0});
+  return closed;
+}
+function translateTool(poly,dx,dy){return poly.map(p=>({x:p.x+dx,y:p.y+dy}));}
+
+function computeCompensatedProfile(){
+  if(targetPoints.length<2 || toolPoints.length<3){
+    showToast("Nakreslete cílovou hřídel (min. 2 body) a vyberte nůž (min. 3 body)", "error");
+    return [];
+  }
+  let startRad=parseFloat(document.getElementById("startDia")?.value||20)/2;
+  const targetClosed=getClosedTargetPolygon();
+  let xMin=Infinity,xMax=-Infinity;
+  for(let p of targetPoints){ if(p.x<xMin) xMin=p.x; if(p.x>xMax) xMax=p.x; }
+  if(xMin===Infinity) return [];
+  const minY = -2.0;
+  const result=[];
+  const steps = Math.floor((xMax - xMin) / stepX);
+  const effectiveTool = getMirroredToolPoints();
+  const effectiveHolder = holderPoints.length >= 3 ? getMirroredPoints(holderPoints) : null;
+  let y = startRad;
+  let dopredu = true;
+  let safety = 0;
+  const MAX_ITER = steps * 10 + 1000;
+  let jedemezpet = false;
+  undercuts = [];
+  let currentUndercut = null;
+  for(let i=0; i>=0 && i<=steps && safety<MAX_ITER; safety++){
+    const xPos=xMin+i*stepX;
+    const checkCollide=(yv)=>{
+      const tTool = translateTool(effectiveTool, xPos, yv);
+      if (polygonsCollide(tTool, targetClosed)) return true;
+      if (effectiveHolder) {
+        const tHolder = translateTool(effectiveHolder, xPos, yv);
+        if (polygonsCollide(tHolder, targetClosed)) return true;
+      }
+      return false;
+    };
+    if(y >= startRad - 1e-9 && !dopredu){
+        dopredu = true;
+        if(jedemezpet){
+            jedemezpet=false;
+            if (currentUndercut) {
+                currentUndercut.xmin = xPos;
+                const xmin = Math.min(currentUndercut.xmin, currentUndercut.xmax);
+                const xmax = Math.max(currentUndercut.xmin, currentUndercut.xmax);
+                let ysafe = currentUndercut.ysafe;
+                if((xmax-xmin) <= (2*stepX)){ysafe = 0;}
+                if (xmax > xmin) undercuts.push({ xmin, xmax, ysafe});
+                currentUndercut = null;
+            }
+        }
+        i++;i++; continue;
+    }
+    if(dopredu && !checkCollide(y)){
+        while(y - stepY >= minY && !checkCollide(y - stepY)) y -= stepY;
+        result.push({x:xPos,y:y});
+        i++;
+    } else {
+        if(i > 0) i--;
+        while(y + stepY <= startRad && !checkCollide(y + stepY)) y += stepY;
+        if(!jedemezpet){
+            jedemezpet=true;
+            currentUndercut = { xmax: xPos, ysafe: y};
+        }
+        if(y > startRad) y = startRad;
+        dopredu = false;
+        if(y >= startRad - 1e-9){}else{
+            result.push({x:xPos,y:y});
+        }
+    }
+  }
+  if (currentUndercut) {
+      currentUndercut.xmin = xMin;
+      const xmin = Math.min(currentUndercut.xmin, currentUndercut.xmax);
+      const xmax = Math.max(currentUndercut.xmin, currentUndercut.xmax);
+      if (xmax > xmin) undercuts.push({ xmin, xmax });
+  }
+  const tm = document.getElementById("timeMsg");
+  if(tm) tm.innerHTML=`✅ Simulace hotova – ${result.length} bodů (krok ${stepY.toFixed(3)} mm)`;
+  materialProfile = null; _lastMaterialLine = -2; removeRawMesh();
+  return result;
+}
+
+function getCanvasParams(canvas, isTarget){
+  if(!canvas) return null;
+  const range = isTarget ? targetDataRange : toolDataRange;
+  const startRad = isTarget ? parseFloat(document.getElementById("startDia")?.value||20)/2 : 0;
+  const maxR = Math.max(range.maxR, startRad, 2);
+  const pad = 40;
+  const scaleX = (canvas.width - 2*pad) / (range.maxX - range.minX || 1);
+  const scaleY = (canvas.height - 2*pad) / (2*maxR || 1);
+  const baseScale = Math.min(scaleX, scaleY);
+  const midY = canvas.height / 2;
+  return { minX: range.minX, maxX: range.maxX, maxR, pad, baseScale, midY };
+}
+function worldToCanvas(canvas,pt,params){
+  if(!params) return {x:0,y:0};
+  const x=params.pad+(pt.x-params.minX)*params.baseScale;
+  const y=params.midY-pt.y*params.baseScale;
+  return {x,y};
+}
+function canvasToWorld(canvas,cx,cy,params){
+  if(!params) return {x:0,y:0};
+  const wx=(cx-params.pad)/params.baseScale+params.minX;
+  const wy=(params.midY-cy)/params.baseScale;
+  return {x:wx,y:Math.max(0,wy)};
+}
+function drawGrid(ctx,params,vp){
+  if(!params) return;
+  const {minX,maxX,maxR,pad,midY,baseScale}=params;
+  const visLeft = (-vp.x) / vp.scale;
+  const visRight = (ctx.canvas.width - vp.x) / vp.scale;
+  const visTop = (-vp.y) / vp.scale;
+  const visBottom = (ctx.canvas.height - vp.y) / vp.scale;
+  ctx.save();
+  ctx.strokeStyle="#1e293b";
+  ctx.lineWidth=1/vp.scale;
+  const xStep=5;
+  const startX=Math.max(minX-20, Math.floor(((visLeft-pad)/baseScale+minX)/xStep)*xStep);
+  const endX=Math.min(maxX+20, Math.ceil(((visRight-pad)/baseScale+minX)/xStep)*xStep);
+  for(let x=startX;x<=endX;x+=xStep){
+    const baseX=pad+(x-minX)*baseScale;
+    ctx.beginPath(); ctx.moveTo(baseX,visTop); ctx.lineTo(baseX,visBottom); ctx.stroke();
+    ctx.fillStyle="#64748b"; ctx.font=`${11/vp.scale}px system-ui`; ctx.fillText(x,baseX-4,midY+14);
+  }
+  const rStep=2;
+  const startR=Math.max(0, Math.floor(((midY-visBottom)/baseScale)/rStep)*rStep);
+  const endR=Math.max(maxR+2, Math.ceil(((midY-visTop)/baseScale)/rStep)*rStep);
+  for(let r=startR;r<=endR;r+=rStep){
+    const baseY=midY-r*baseScale;
+    ctx.beginPath(); ctx.moveTo(visLeft,baseY); ctx.lineTo(visRight,baseY); ctx.stroke();
+    ctx.fillStyle="#64748b"; ctx.font=`${11/vp.scale}px system-ui`; ctx.fillText(r,pad-24,baseY+3);
+  }
+  ctx.restore();
+}
+function drawPolygon(ctx,points,color,lineWidth,close,fillAlpha,params,vp){
+  if(points.length<2) return;
+  const s = vp ? vp.scale : 1;
+  ctx.beginPath();
+  const first=worldToCanvas(ctx.canvas,points[0],params);
+  ctx.moveTo(first.x,first.y);
+  for(let i=1;i<points.length;i++){
+    const p=worldToCanvas(ctx.canvas,points[i],params);
+    ctx.lineTo(p.x,p.y);
+  }
+  if(close && points.length>2) ctx.closePath();
+  ctx.strokeStyle=color; ctx.lineWidth=lineWidth/s; ctx.stroke();
+  if(fillAlpha && points.length>2){ ctx.fillStyle=color; ctx.globalAlpha=fillAlpha; ctx.fill(); ctx.globalAlpha=1; }
+  ctx.fillStyle=color;
+  for(let p of points){
+    const cp=worldToCanvas(ctx.canvas,p,params);
+    ctx.beginPath(); ctx.arc(cp.x,cp.y,4/s,0,2*Math.PI); ctx.fill();
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(cp.x,cp.y,1.5/s,0,2*Math.PI); ctx.fill();
+    ctx.fillStyle=color;
+  }
+}
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx*dx + dy*dy;
+  if (len2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+function drawGcodePasses(ctx,params,startRad,vp){
+  const show=document.getElementById("showPassesCheckbox")?.checked;
+  if(!show || !currentGcodeLines.length) return;
+  gcodePassSegments = [];
+  const s = vp ? vp.scale : 1;
+  let x0=0, y0=0;
+  for(let i=0;i<currentGcodeLines.length;i++){
+    const line=currentGcodeLines[i];
+    let isG0=line.startsWith("G0");
+    let mx=line.match(/X([\d\.\-]+)/), my=line.match(/Y([\d\.\-]+)/);
+    let nx=x0, ny=y0;
+    if(mx) nx=parseFloat(mx[1]);
+    if(my) ny=parseFloat(my[1]);
+    const y1_world = startRad - y0;
+    const y2_world = startRad - ny;
+    const p1=worldToCanvas(ctx.canvas,{x:x0, y:y1_world},params);
+    const p2=worldToCanvas(ctx.canvas,{x:nx, y:y2_world},params);
+    gcodePassSegments.push({
+      x1: p1.x * s + vp.x, y1: p1.y * s + vp.y,
+      x2: p2.x * s + vp.x, y2: p2.y * s + vp.y,
+      idx: i, isG0
+    });
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y);
+    ctx.strokeStyle=isG0?cssVar('--retr'):cssVar('--pass'); ctx.lineWidth=1.5/s; ctx.stroke();
+    x0=nx; y0=ny;
+  }
+}
+function drawToolAt(ctx,params,startRad,xPos,yPos,vp){
+  const effectiveTool = getMirroredToolPoints();
+  if(!effectiveTool.length) return;
+  const toolY = startRad - yPos;
+  const translated=translateTool(effectiveTool,xPos,toolY);
+  drawPolygon(ctx,translated,"#e2e8f0",2,true,0.35,params,vp);
+}
+function drawRadiusPreview(ctx, params, vp) {
+  if (!pendingRadius) return;
+  const { candidates, activeIndex } = pendingRadius;
+  if (!candidates || candidates.length === 0) return;
+  const activeCandidate = candidates[activeIndex || 0];
+  if (!activeCandidate) return;
+  const { T1, T2 } = activeCandidate;
+  ctx.save();
+  const s = vp ? vp.scale : 1;
+  const t1c = worldToCanvas(ctx.canvas, T1, params);
+  const t2c = worldToCanvas(ctx.canvas, T2, params);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(t1c.x - 4/s, t1c.y - 4/s, 8/s, 8/s);
+  ctx.fillRect(t2c.x - 4/s, t2c.y - 4/s, 8/s, 8/s);
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i];
+    const isActive = i === activeIndex;
+    ctx.beginPath();
+    for (let j = 0; j < c.arcPoints.length; j++) {
+      const p = worldToCanvas(ctx.canvas, c.arcPoints[j], params);
+      if (j === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.strokeStyle = isActive ? "#00ffcc" : "#ff3366";
+    ctx.lineWidth = (isActive ? 3 : 1.5) / s;
+    ctx.setLineDash(isActive ? [] : [4/s, 4/s]);
+    ctx.stroke();
+    const mid = c.arcPoints[Math.floor(c.arcPoints.length / 2)];
+    const midc = worldToCanvas(ctx.canvas, mid, params);
+    ctx.fillStyle = isActive ? "#00ffcc" : "#ff3366";
+    ctx.font = `bold ${12/s}px system-ui`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(isActive ? "⬤ zvolená" : "◯ varianta " + (i + 1), midc.x, midc.y - (isActive ? 16/s : 12/s));
+  }
+  ctx.restore();
+}
+function drawGroovePreview(ctx, params, vp, isGhost = false) {
+  const data = isGhost ? grooveGhost : pendingGroove;
+  if (!data || data.canvas !== ctx.canvas) return;
+  ctx.save();
+  const s = vp ? vp.scale : 1;
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = (isGhost ? 1.5 : 2.5) / s;
+  ctx.setLineDash(isGhost ? [3 / s, 3 / s] : [6 / s, 4 / s]);
+  ctx.globalAlpha = isGhost ? 0.5 : 1.0;
+  ctx.beginPath();
+  for (let i = 0; i < data.points.length; i++) {
+    const p = worldToCanvas(ctx.canvas, data.points[i], params);
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = isGhost ? '#fbbf2480' : '#fbbf24';
+  for (const pt of data.points) {
+    const p = worldToCanvas(ctx.canvas, pt, params);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, (isGhost ? 2.5 : 4) / s, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+  if (!isGhost) {
+    const cx = (data.points[0].x + data.points[data.points.length - 1].x) / 2;
+    const cy = data.points[0].y;
+    const c = worldToCanvas(ctx.canvas, {x: cx, y: cy}, params);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1 / s;
+    ctx.globalAlpha = 1.0;
+    ctx.beginPath();
+    ctx.moveTo(c.x - 8 / s, c.y); ctx.lineTo(c.x + 8 / s, c.y);
+    ctx.moveTo(c.x, c.y - 8 / s); ctx.lineTo(c.x, c.y + 8 / s);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawTargetCanvas(){
+  if(!targetCtx || !targetParams) return;
+  targetCtx.setTransform(1,0,0,1,0,0);
+  targetCtx.clearRect(0,0,targetCanvas.width,targetCanvas.height);
+  drawSelRect(targetCtx, targetCanvas);
+  applyVP(targetCtx, targetVP);
+  drawGrid(targetCtx,targetParams,targetVP);
+  const startRad=parseFloat(document.getElementById("startDia")?.value||20)/2;
+  targetCtx.strokeStyle=cssVar('--edge'); targetCtx.lineWidth=2/targetVP.scale; targetCtx.setLineDash([6/targetVP.scale,6/targetVP.scale]);
+  const yLine=targetParams.midY-startRad*targetParams.baseScale;
+  targetCtx.beginPath(); targetCtx.moveTo(targetParams.pad,yLine); targetCtx.lineTo(targetCanvas.width-targetParams.pad,yLine); targetCtx.stroke();
+  targetCtx.setLineDash([]);
+  const closed=getClosedTargetPolygon();
+  if(closed.length) drawPolygon(targetCtx,closed,cssVar('--profile'),1.8,true,0.15,targetParams,targetVP);
+  if(targetPoints.length) drawPolygon(targetCtx,targetPoints,cssVar('--profile'),2.5,false,0,targetParams,targetVP);
+  if(compensatedProfile.length){
+    targetCtx.beginPath();
+    const first=worldToCanvas(targetCanvas,compensatedProfile[0],targetParams);
+    targetCtx.moveTo(first.x,first.y);
+    for(let i=1;i<compensatedProfile.length;i++){
+      const p=worldToCanvas(targetCanvas,compensatedProfile[i],targetParams);
+      targetCtx.lineTo(p.x,p.y);
+    }
+    targetCtx.strokeStyle=cssVar('--comp'); targetCtx.lineWidth=3/targetVP.scale; targetCtx.stroke();
+    for(let pt of compensatedProfile){
+      const cp=worldToCanvas(targetCanvas,pt,targetParams);
+      targetCtx.beginPath(); targetCtx.arc(cp.x,cp.y,3/targetVP.scale,0,2*Math.PI); targetCtx.fillStyle="#b3ffb3"; targetCtx.fill();
+    }
+  }
+  drawGcodePasses(targetCtx,targetParams,startRad,targetVP);
+  if(window._toolPreviewX!==undefined && window._toolPreviewY!==undefined){
+    drawToolAt(targetCtx,targetParams,startRad,window._toolPreviewX,window._toolPreviewY,targetVP);
+  }
+  if (grooveGhost && grooveGhost.canvas === targetCanvas) {
+    drawGroovePreview(targetCtx, targetParams, targetVP, true);
+  }
+  if (pendingGroove && pendingGroove.canvas === targetCanvas) {
+    drawGroovePreview(targetCtx, targetParams, targetVP, false);
+  }
+  if (pendingRadius && pendingRadius.canvas === targetCanvas) {
+    drawRadiusPreview(targetCtx, targetParams, targetVP);
+  }
+  drawSelectionOverlay(targetCtx, targetPoints, targetSelected, targetParams, targetVP);
+  targetCtx.setTransform(1,0,0,1,0,0);
+}
+function drawToolCanvas(){
+  if(!toolCtx || !toolParams) return;
+  toolCtx.setTransform(1,0,0,1,0,0);
+  toolCtx.clearRect(0,0,toolCanvas.width,toolCanvas.height);
+  drawSelRect(toolCtx, toolCanvas);
+  applyVP(toolCtx, toolVP);
+  drawGrid(toolCtx,toolParams,toolVP);
+  if (toolBgImage) {
+    const tbg = toolBgImage;
+    const origin = worldToCanvas(toolCanvas, { x: tbg.wx, y: tbg.wy }, toolParams);
+    const pw = tbg.img.width  * tbg.wScale * toolParams.baseScale;
+    const ph = tbg.img.height * tbg.wScale * toolParams.baseScale;
+    toolCtx.save();
+    toolCtx.globalAlpha = tbg.opacity;
+    toolCtx.drawImage(tbg.img, origin.x, origin.y, pw, ph);
+    toolCtx.restore();
+  }
+  if(toolPoints.length) drawPolygon(toolCtx,toolPoints,cssVar('--tool'),2.5,true,0.2,toolParams,toolVP);
+  if(holderPoints.length){
+    drawPolygon(toolCtx, holderPoints, '#f97316', 1.8, true, 0.12, toolParams, toolVP);
+  }
+  if(toolDrawMode === 'holder'){
+    toolCtx.save();
+    toolCtx.strokeStyle='#f97316';
+    toolCtx.lineWidth=3;
+    toolCtx.setLineDash([6,4]);
+    toolCtx.strokeRect(2,2,toolCanvas.width-4,toolCanvas.height-4);
+    toolCtx.restore();
+  }
+  if (pendingRadius && pendingRadius.canvas === toolCanvas) {
+    drawRadiusPreview(toolCtx, toolParams, toolVP);
+  }
+  drawSelectionOverlay(toolCtx, toolPoints, toolSelected, toolParams, toolVP);
+  toolCtx.setTransform(1,0,0,1,0,0);
+}
+function drawAll(){
+  if(document.getElementById('page-shaft')?.classList.contains('active')){
+    targetParams=getCanvasParams(targetCanvas,true);
+    if(targetCtx && targetParams) drawTargetCanvas();
+  }
+  if(document.getElementById('page-tool')?.classList.contains('active')){
+    toolParams=getCanvasParams(toolCanvas,false);
+    if(toolCtx && toolParams) drawToolCanvas();
+  }
+}
+
+function computeRadiusCandidates(points, idx, radius) {
+  if (points.length < 3) return null;
+  const prev = points[idx - 1];
+  const curr = points[idx];
+  const next = points[idx + 1];
+  if (!prev || !next) return null;
+  const v1 = { x: prev.x - curr.x, y: prev.y - curr.y };
+  const v2 = { x: next.x - curr.x, y: next.y - curr.y };
+  const len1 = Math.hypot(v1.x, v1.y);
+  const len2 = Math.hypot(v2.x, v2.y);
+  if (len1 < 1e-6 || len2 < 1e-6) return null;
+  const u1 = { x: v1.x / len1, y: v1.y / len1 };
+  const u2 = { x: v2.x / len2, y: v2.y / len2 };
+  const dot = u1.x * u2.x + u1.y * u2.y;
+  let angle = Math.acos(Math.min(1, Math.max(-1, dot)));
+  if (angle < 1e-9) return null;
+  const d = radius / Math.tan(angle / 2);
+  if (d > len1 || d > len2) return null;
+  const T1a = { x: curr.x + u1.x * d, y: curr.y + u1.y * d };
+  const T2a = { x: curr.x + u2.x * d, y: curr.y + u2.y * d };
+  const T1b = { x: curr.x - u1.x * d, y: curr.y - u1.y * d };
+  const T2b = { x: curr.x - u2.x * d, y: curr.y - u2.y * d };
+  function solveCenter(T1, T2) {
+    const a11 = u1.x, a12 = u1.y, b1 = T1.x * u1.x + T1.y * u1.y;
+    const a21 = u2.x, a22 = u2.y, b2 = T2.x * u2.x + T2.y * u2.y;
+    const det = a11 * a22 - a12 * a21;
+    if (Math.abs(det) < 1e-9) return null;
+    const Cx = (b1 * a22 - a12 * b2) / det;
+    const Cy = (a11 * b2 - b1 * a21) / det;
+    const center = { x: Cx, y: Cy };
+    if (Math.abs(Math.hypot(center.x - T1.x, center.y - T1.y) - radius) > 1e-3) return null;
+    if (Math.abs(Math.hypot(center.x - T2.x, center.y - T2.y) - radius) > 1e-3) return null;
+    return center;
+  }
+  const Ca = solveCenter(T1a, T2a);
+  const Cb = solveCenter(T1b, T2b);
+  function angleOnArc(test, start, delta) {
+    let t = test, s = start;
+    while (t < 0) t += 2 * Math.PI;
+    while (s < 0) s += 2 * Math.PI;
+    if (delta > 0) {
+      const end = s + delta;
+      if (end >= 2 * Math.PI) return t >= s || t <= (end - 2 * Math.PI);
+      return t >= s && t <= end;
+    } else {
+      const end = s + delta;
+      if (end < 0) return t <= s || t >= (end + 2 * Math.PI);
+      return t <= s && t >= end;
+    }
+  }
+  function buildCandidate(T1, T2, center) {
+    let a1 = Math.atan2(T1.y - center.y, T1.x - center.x);
+    let a2 = Math.atan2(T2.y - center.y, T2.x - center.x);
+    let delta = a2 - a1;
+    while (delta <= -Math.PI) delta += 2 * Math.PI;
+    while (delta > Math.PI) delta -= 2 * Math.PI;
+    const dirCx = curr.x - center.x;
+    const dirCy = curr.y - center.y;
+    const lenC = Math.hypot(dirCx, dirCy);
+    const nearX = center.x + (dirCx / lenC) * radius;
+    const nearY = center.y + (dirCy / lenC) * radius;
+    const aNear = Math.atan2(nearY - center.y, nearX - center.x);
+    const on1 = angleOnArc(aNear, a1, delta);
+    const delta2 = delta > 0 ? delta - 2 * Math.PI : delta + 2 * Math.PI;
+    const on2 = angleOnArc(aNear, a1, delta2);
+    let chosenDelta = (on1 && !on2) ? delta : (!on1 && on2) ? delta2 : (Math.abs(delta) <= Math.abs(delta2) ? delta : delta2);
+    const steps = 24;
+    const arcPoints = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const ang = a1 + chosenDelta * t;
+      arcPoints.push({ x: center.x + radius * Math.cos(ang), y: center.y + radius * Math.sin(ang) });
+    }
+    return { center, a1, a2, delta: chosenDelta, arcPoints, T1, T2 };
+  }
+  const candidates = [];
+  if (Ca) candidates.push(buildCandidate(T1a, T2a, Ca));
+  if (Cb && (!Ca || Math.hypot(Cb.x - Ca.x, Cb.y - Ca.y) > 1e-6)) {
+    candidates.push(buildCandidate(T1b, T2b, Cb));
+  }
+  if (candidates.length === 0) return null;
+  return { T1a, T2a, T1b, T2b, candidates };
+}
+function applyRadiusCandidate(points, idx, candidate) {
+  const newPoints = [...points];
+  newPoints.splice(idx, 1, candidate.T1, ...candidate.arcPoints, candidate.T2);
+  points.length = 0;
+  points.push(...newPoints);
+}
+function computeGroovePoints(xCenter, yCenter, type, width, depth, radius, mirror = false) {
+  const pts = [];
+  const steps = 16;
+  const X = xCenter; const Y = yCenter; const R = radius; const Z = depth; const W = width;
+  if (type === 'E') {
+    if (!mirror) {
+      const cx = X - R; const cy = Y + R - Z;
+      pts.push({x: X - 2*R - W, y: Y});
+      pts.push({x: X - W, y: cy - R});
+      pts.push({x: cx, y: cy - R});
+      for (let i = 0; i <= steps; i++) {
+        const a = 1.5 * Math.PI + (Math.PI / 2) * (i / steps);
+        pts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
+      }
+    } else {
+      const cx = X + R; const cy = Y + R - Z;
+      for (let i = 0; i <= steps; i++) {
+        const a = Math.PI + (Math.PI / 2) * (i / steps);
+        pts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
+      }
+      pts.push({x: cx + W, y: cy - R});
+      pts.push({x: cx + R + W, y: Y});
+    }
+  } else if (type === 'F') {
+    if (!mirror) {
+      const cx = X - R + Z; const cy = Y + R - Z;
+      pts.push({x: X - 2*R + Z - W, y: Y});
+      pts.push({x: X - W, y: cy - R});
+      pts.push({x: cx, y: cy - R});
+      for (let i = 0; i <= steps; i++) {
+        const a = 1.5 * Math.PI + (Math.PI / 2) * (i / steps);
+        pts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
+      }
+      pts.push({x: cx + R, y: cy});
+      pts.push({x: X, y: cy + R});
+    } else {
+      const cx = X + R - Z; const cy = Y + R - Z;
+      pts.push({x: X, y: cy + R});
+      for (let i = 0; i <= steps; i++) {
+        const a = Math.PI + (Math.PI / 2) * (i / steps);
+        pts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
+      }
+      pts.push({x: cx + W, y: cy - R});
+      pts.push({x: cx + R + W, y: Y});
+    }
+  }
+  return pts;
+}
+function applyGroove(xCenter, groovePoints, clickIdx) {
+  if (clickIdx === undefined || clickIdx < 0 || clickIdx >= targetPoints.length) {
+    showToast("Chyba: kliknutý bod nenalezen", "error"); return;
+  }
+  const newPoints = [...targetPoints.slice(0, clickIdx), ...groovePoints, ...targetPoints.slice(clickIdx + 1)];
+  targetPoints.length = 0;
+  targetPoints.push(...newPoints);
+}
+function updateActiveRadiusCandidate(mx, my) {
+  if (!pendingRadius) return;
+  let best = 0; let bestDist = Infinity;
+  for (let i = 0; i < pendingRadius.candidates.length; i++) {
+    const c = pendingRadius.candidates[i];
+    const mid = c.arcPoints[Math.floor(c.arcPoints.length / 2)];
+    const d = Math.hypot(mid.x - mx, mid.y - my);
+    if (d < bestDist) { bestDist = d; best = i; }
+  }
+  pendingRadius.activeIndex = best;
+}
+function drawSelectionOverlay(ctx, points, selectedSet, params, vp) {
+  if (!selectedSet || !selectedSet.size) return;
+  ctx.save();
+  const s = vp ? vp.scale : 1;
+  ctx.strokeStyle = '#06b6d4';
+  ctx.lineWidth = 2.5 / s;
+  ctx.shadowColor = '#06b6d4';
+  ctx.shadowBlur = 8 / s;
+  for (const idx of selectedSet) {
+    if (idx < 0 || idx >= points.length) continue;
+    const cp = worldToCanvas(ctx.canvas, points[idx], params);
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, 9 / s, 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawSelRect(ctx, canvas) {
+  if (!activeSelRect || activeSelRect.canvas !== canvas) return;
+  const { sx0, sy0, sx1, sy1 } = activeSelRect;
+  ctx.save();
+  ctx.strokeStyle = '#06b6d4';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.fillStyle = 'rgba(6,182,212,0.08)';
+  const x = Math.min(sx0, sx1), y = Math.min(sy0, sy1);
+  const w = Math.abs(sx1 - sx0), h = Math.abs(sy1 - sy0);
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeRect(x, y, w, h);
+  ctx.restore();
+}
+function updateSelHints() {
+  const th = document.getElementById('targetSelHint');
+  const tl = document.getElementById('toolSelHint');
+  if (th) th.textContent = targetSelected.size ? `✅ Vybráno ${targetSelected.size} bod${targetSelected.size > 4 ? 'ů' : targetSelected.size > 1 ? 'y' : ''}` : '';
+  if (tl) tl.textContent = toolSelected.size   ? `✅ Vybráno ${toolSelected.size} bod${toolSelected.size > 4 ? 'ů' : toolSelected.size > 1 ? 'y' : ''}` : '';
+}
+
+function attachCanvasEvents(canvas, points, _legacy, isTarget) {
+  const getParams   = () => isTarget ? targetParams : toolParams;
+  const getSelected = () => isTarget ? targetSelected : toolSelected;
+  const getVP       = () => isTarget ? targetVP : toolVP;
+  function canvasPt(e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      sx: (e.clientX - r.left) * (canvas.width / r.width),
+      sy: (e.clientY - r.top)  * (canvas.height / r.height)
+    };
+  }
+  function findNearestPoint(baseSX, baseSY, params, vp) {
+    let bestIdx = -1, bestDist = Infinity;
+    const thresh = 14 / vp.scale;
+    for (let i = 0; i < points.length; i++) {
+      const p = worldToCanvas(canvas, points[i], params);
+      const d = Math.hypot(p.x - baseSX, p.y - baseSY);
+      if (d < thresh && d < bestDist) { bestDist = d; bestIdx = i; }
+    }
+    return bestIdx;
+  }
+  let singleDrag = null;
+  canvas.addEventListener("mousedown", async (e) => {
+    if (playState.active && e.button === 0) { stopPlayback(); }
+    if (e.button === 0 && e.ctrlKey) return;
+    if (e.button === 1 || e.button === 2) {
+      e.preventDefault();
+      const { sx, sy } = canvasPt(e);
+      const vp = getVP();
+      panState = { canvas, vp, startSX: sx, startSY: sy, origX: vp.x, origY: vp.y };
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+    if (pendingGroove && pendingGroove.canvas === canvas && isTarget) {
+      e.preventDefault();
+      applyGroove(pendingGroove.xCenter, pendingGroove.points, pendingGroove.clickIdx);
+      pendingGroove = null;
+      grooveModeActive = false;
+      updateDataRange(targetPoints, true);
+      drawAll();
+      syncTableFromTarget();
+      compensatedProfile = [];
+      const gs = document.getElementById("grooveStatus");
+      if(gs) gs.innerText = "⚙️ Režim zápich neaktivní";
+      return;
+    }
+    if (pendingRadius && pendingRadius.canvas === canvas) {
+      e.preventDefault();
+      const c = pendingRadius.candidates[pendingRadius.activeIndex];
+      if (c) {
+        applyRadiusCandidate(pendingRadius.points, pendingRadius.idx, c);
+        pendingRadius = null;
+        radiusModeActive = false;
+        updateDataRange(points, isTarget);
+        drawAll();
+        if (isTarget) syncTableFromTarget();
+        compensatedProfile = [];
+        const rs = isTarget?document.getElementById("radiusStatus"):document.getElementById("radiusStatusTool");
+        if(rs) rs.innerText = "⚙️ Režim rádius neaktivní";
+      }
+      return;
+    }
+    if (!isTarget && imgMoveActive && toolBgImage) {
+      const { sx, sy } = canvasPt(e);
+      imgDragState = { startSX: sx, startSY: sy, origWX: toolBgImage.wx, origWY: toolBgImage.wy };
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+    if (grooveModeActive && isTarget) {
+      e.preventDefault();
+      const { sx, sy } = canvasPt(e);
+      const vp = getVP();
+      const params = getParams(); if (!params) return;
+      const base = screenToBase(canvas, sx, sy, vp);
+      const worldMouse = canvasToWorld(canvas, base.x, base.y, params);
+      let bestIdx = -1, bestDist = Infinity;
+      const threshMM = 2.0;
+      for (let i = 0; i < targetPoints.length; i++) {
+        const d = Math.hypot(targetPoints[i].x - worldMouse.x, targetPoints[i].y - worldMouse.y);
+        if (d < threshMM && d < bestDist) { bestDist = d; bestIdx = i; }
+      }
+      if (bestIdx < 0) { showToast("Klikni blíže k existujícímu bodu profilu", "warning"); return; }
+      const xCenter = targetPoints[bestIdx].x;
+      const clickIdx = bestIdx;
+      const type = document.getElementById("grooveType")?.value||'E';
+      const width = parseFloat(document.getElementById("grooveWidth")?.value||0.4);
+      const depth = parseFloat(document.getElementById("grooveDepth")?.value||0.1);
+      const radius = parseFloat(document.getElementById("grooveRadius")?.value||0.2);
+      if (isNaN(width) || width <= 0 || isNaN(depth) || depth <= 0) {
+        showToast("Zadejte platnou šířku a hloubku zápichu", "warning"); return;
+      }
+      const yCenter = targetPoints[bestIdx].y;
+      let mirror = false;
+      if (bestIdx > 0 && targetPoints[bestIdx - 1].y > targetPoints[bestIdx].y + 0.001) mirror = true;
+      const pts = computeGroovePoints(xCenter, yCenter, type, width, depth, radius, mirror);
+      if (!pts || pts.length < 2) { showToast("Nelze vytvořit zápich – zkontrolujte parametry", "error"); return; }
+      pendingGroove = { points: pts, canvas: canvas, xCenter, clickIdx };
+      const gs = document.getElementById("grooveStatus");
+      if(gs) gs.innerText = `⛏️ Zápich na X=${xCenter.toFixed(2)} – klikni pro potvrzení (Esc = zrušit)`;
+      drawAll();
+      return;
+    }
+    if (radiusModeActive) {
+      e.preventDefault();
+      const { sx, sy } = canvasPt(e);
+      const vp = getVP();
+      const params = getParams(); if (!params) return;
+      const base = screenToBase(canvas, sx, sy, vp);
+      const bestIdx = findNearestPoint(base.x, base.y, params, vp);
+      if (bestIdx >= 0 && points.length >= 3) {
+        const rStr = await showPrompt("Zadejte poloměr oblouku (mm):", "2.0");
+        const radius = parseFloat(rStr);
+        if (!isNaN(radius) && radius > 0) {
+          const cdata = computeRadiusCandidates(points, bestIdx, radius);
+          if (cdata && cdata.candidates.length > 0) {
+            pendingRadius = { points, canvas, idx: bestIdx, radius, candidates: cdata.candidates, activeIndex: 0 };
+            const world = canvasToWorld(canvas, base.x, base.y, params);
+            updateActiveRadiusCandidate(world.x, world.y);
+            const rs = isTarget?document.getElementById("radiusStatus"):document.getElementById("radiusStatusTool");
+            if(rs) rs.innerText = "📐 Vyberte směr oblouku";
+            drawAll();
+          } else { showToast("Rádius je příliš velký pro danou hranu.", "warning"); }
+        }
+      }
+      return;
+    }
+    const { sx, sy } = canvasPt(e);
+    const vp = getVP();
+    const base = screenToBase(canvas, sx, sy, vp);
+    const params = getParams(); if (!params) return;
+    const sel = getSelected();
+    if (e.shiftKey) {
+      const hitIdx = findNearestPoint(base.x, base.y, params, vp);
+      if (hitIdx >= 0) {
+        if (sel.has(hitIdx)) sel.delete(hitIdx); else sel.add(hitIdx);
+        updateSelHints(); drawAll();
+      } else {
+        activeSelRect = { canvas, sx0: sx, sy0: sy, sx1: sx, sy1: sy };
+      }
+      return;
+    }
+    const hitIdx = findNearestPoint(base.x, base.y, params, vp);
+    if (hitIdx >= 0) {
+      if (sel.has(hitIdx) && sel.size > 1) {
+        groupDrag = {
+          isTarget,
+          leaderIdx: hitIdx,
+          origPositions: [...sel].map(i => ({ idx: i, x: points[i].x, y: points[i].y })),
+          startWorld: canvasToWorld(canvas, base.x, base.y, params)
+        };
+      } else {
+        sel.clear();
+        const w = canvasToWorld(canvas, base.x, base.y, params);
+        singleDrag = { idx: hitIdx, origX: points[hitIdx].x, origY: points[hitIdx].y, startWX: w.x, startWY: w.y };
+      }
+      return;
+    }
+    sel.clear();
+    updateSelHints();
+    const world = canvasToWorld(canvas, base.x, base.y, params);
+    const snap = parseFloat(document.getElementById("snapSize")?.value||0.5);
+    let newX = Math.round(world.x / snap) * snap;
+    let newY = Math.round(world.y / snap) * snap;
+    if (newY < 0) newY = 0;
+    points.push({ x: newX, y: newY });
+    updateDataRange(points, isTarget);
+    drawAll();
+    if (isTarget) syncTableFromTarget();
+  });
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
+  canvas.addEventListener("click", (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const { sx, sy } = canvasPt(e);
+    let bestIdx = -1, bestDist = Infinity;
+    const THRESH = 14;
+    for (const seg of gcodePassSegments) {
+      const d = distToSegment(sx, sy, seg.x1, seg.y1, seg.x2, seg.y2);
+      if (d < THRESH && d < bestDist) { bestDist = d; bestIdx = seg.idx; }
+    }
+    if (bestIdx >= 0) {
+      const ta = document.getElementById("output");
+      const lines = ta.value.split("\n");
+      let pos = 0;
+      for (let i = 0; i < bestIdx && i < lines.length; i++) pos += lines[i].length + 1;
+      ta.focus();
+      ta.setSelectionRange(pos, pos + lines[bestIdx].length);
+      const lineHeight = ta.scrollHeight / Math.max(1, lines.length);
+      ta.scrollTop = Math.max(0, lineHeight * bestIdx - ta.clientHeight / 2);
+      showToast(`Přesunuto na řádek ${bestIdx + 1}`, 'info', 2000);
+    } else { showToast("Klikněte blíže k dráze nástroje", 'warning', 2000); }
+  });
+  window.addEventListener("mousemove", (e) => {
+    const r = canvas.getBoundingClientRect();
+    const overCanvas = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    if (overCanvas) {
+      const sx = (e.clientX - r.left) * (canvas.width / r.width);
+      const sy = (e.clientY - r.top) * (canvas.height / r.height);
+      const vp = getVP();
+      const params = getParams();
+      if (params) {
+        const base = screenToBase(canvas, sx, sy, vp);
+        const world = canvasToWorld(canvas, base.x, base.y, params);
+        const snap = parseFloat(document.getElementById("snapSize")?.value||0.5);
+        const snapX = Math.round(world.x / snap) * snap;
+        const snapY = Math.round(world.y / snap) * snap;
+        const prefix = isTarget ? 'target' : 'tool';
+        const cxEl = document.getElementById(prefix + 'CursorX');
+        const cyEl = document.getElementById(prefix + 'CursorY');
+        const sxEl = document.getElementById(prefix + 'SnapX');
+        const syEl = document.getElementById(prefix + 'SnapY');
+        if (cxEl) cxEl.textContent = world.x.toFixed(3);
+        if (cyEl) cyEl.textContent = world.y.toFixed(3);
+        if (sxEl) sxEl.textContent = snapX.toFixed(3);
+        if (syEl) syEl.textContent = snapY.toFixed(3);
+      }
+    }
+    if (overCanvas && grooveModeActive && isTarget && !pendingGroove && !singleDrag && !groupDrag && !panState) {
+      const vp = getVP();
+      const params = getParams();
+      if (params) {
+        const sx = (e.clientX - r.left) * (canvas.width / r.width);
+        const sy = (e.clientY - r.top) * (canvas.height / r.height);
+        const base = screenToBase(canvas, sx, sy, vp);
+        const worldMouse = canvasToWorld(canvas, base.x, base.y, params);
+        let bestIdx = -1, bestDist = Infinity;
+        const threshMM = 2.0;
+        for (let i = 0; i < targetPoints.length; i++) {
+          const d = Math.hypot(targetPoints[i].x - worldMouse.x, targetPoints[i].y - worldMouse.y);
+          if (d < threshMM && d < bestDist) { bestDist = d; bestIdx = i; }
+        }
+        if (bestIdx >= 0) {
+          const xCenter = targetPoints[bestIdx].x;
+          const type = document.getElementById("grooveType")?.value||'E';
+          const width = parseFloat(document.getElementById("grooveWidth")?.value||0.4);
+          const depth = parseFloat(document.getElementById("grooveDepth")?.value||0.1);
+          const radius = parseFloat(document.getElementById("grooveRadius")?.value||0.2);
+          if (!isNaN(width) && width > 0 && !isNaN(depth) && depth > 0) {
+            const yCenter = targetPoints[bestIdx].y;
+            let mirror = false;
+            if (bestIdx > 0 && targetPoints[bestIdx - 1].y > targetPoints[bestIdx].y + 0.001) mirror = true;
+            const pts = computeGroovePoints(xCenter, yCenter, type, width, depth, radius, mirror);
+            if (pts && pts.length >= 2) {
+              grooveGhost = { points: pts, canvas: canvas };
+              drawAll();
+            }
+          }
+        } else if (grooveGhost) { grooveGhost = null; drawAll(); }
+      }
+    } else if (grooveGhost && grooveGhost.canvas === canvas && (!grooveModeActive || !isTarget || pendingGroove)) {
+      grooveGhost = null; drawAll();
+    }
+    if (panState && panState.canvas === canvas) {
+      const { sx, sy } = canvasPt(e);
+      panState.vp.x = panState.origX + (sx - panState.startSX);
+      panState.vp.y = panState.origY + (sy - panState.startSY);
+      drawAll();
+      return;
+    }
+    if (imgDragState && !isTarget && toolBgImage) {
+      const { sx, sy } = canvasPt(e);
+      const params = getParams();
+      const vp = getVP();
+      if (params) {
+        toolBgImage.wx = imgDragState.origWX + (sx - imgDragState.startSX) / (params.baseScale * vp.scale);
+        toolBgImage.wy = imgDragState.origWY - (sy - imgDragState.startSY) / (params.baseScale * vp.scale);
+        drawAll();
+      }
+      return;
+    }
+    if (singleDrag) {
+      const { sx, sy } = canvasPt(e);
+      const vp = getVP();
+      const params = getParams(); if (!params) return;
+      const base = screenToBase(canvas, sx, sy, vp);
+      const world = canvasToWorld(canvas, base.x, base.y, params);
+      const snap = parseFloat(document.getElementById("snapSize")?.value||0.5);
+      let newX = Math.round((singleDrag.origX + world.x - singleDrag.startWX) / snap) * snap;
+      let newY = Math.round((singleDrag.origY + world.y - singleDrag.startWY) / snap) * snap;
+      if (isTarget) newY = Math.max(0, newY);
+      points[singleDrag.idx] = { x: newX, y: newY };
+      drawAll(); if (isTarget) syncTableFromTarget();
+      return;
+    }
+    if (groupDrag && groupDrag.isTarget === isTarget) {
+      const { sx, sy } = canvasPt(e);
+      const vp = getVP();
+      const params = getParams(); if (!params) return;
+      const base = screenToBase(canvas, sx, sy, vp);
+      const world = canvasToWorld(canvas, base.x, base.y, params);
+      const snap = parseFloat(document.getElementById("snapSize")?.value||0.5);
+      const leader = groupDrag.origPositions.find(p => p.idx === groupDrag.leaderIdx);
+      const dxRaw = world.x - groupDrag.startWorld.x;
+      const dyRaw = world.y - groupDrag.startWorld.y;
+      let leaderNewX = Math.round((leader.x + dxRaw) / snap) * snap;
+      let leaderNewY = Math.round((leader.y + dyRaw) / snap) * snap;
+      if (isTarget) leaderNewY = Math.max(0, leaderNewY);
+      const snapDx = leaderNewX - leader.x;
+      const snapDy = leaderNewY - leader.y;
+      for (const { idx, x, y } of groupDrag.origPositions) {
+        let newX = x + snapDx;
+        let newY = y + snapDy;
+        if (isTarget) newY = Math.max(0, newY);
+        points[idx] = { x: newX, y: newY };
+      }
+      drawAll(); if (isTarget) syncTableFromTarget();
+      return;
+    }
+    if (activeSelRect && activeSelRect.canvas === canvas) {
+      const { sx, sy } = canvasPt(e);
+      activeSelRect.sx1 = sx; activeSelRect.sy1 = sy;
+      drawAll();
+      return;
+    }
+    if (pendingRadius && pendingRadius.canvas === canvas) {
+      const { sx, sy } = canvasPt(e);
+      const vp = getVP();
+      const params = getParams();
+      if (params) {
+        const base = screenToBase(canvas, sx, sy, vp);
+        const w = canvasToWorld(canvas, base.x, base.y, params);
+        updateActiveRadiusCandidate(w.x, w.y); drawAll();
+      }
+    }
+  });
+  window.addEventListener("mouseup", () => {
+    if (activeSelRect && activeSelRect.canvas === canvas) {
+      const params = getParams();
+      const vp = getVP();
+      const sel = getSelected();
+      if (params) {
+        const x0 = Math.min(activeSelRect.sx0, activeSelRect.sx1);
+        const x1 = Math.max(activeSelRect.sx0, activeSelRect.sx1);
+        const y0 = Math.min(activeSelRect.sy0, activeSelRect.sy1);
+        const y1 = Math.max(activeSelRect.sy0, activeSelRect.sy1);
+        if (x1 - x0 > 4 || y1 - y0 > 4) {
+          for (let i = 0; i < points.length; i++) {
+            const cp = worldToCanvas(canvas, points[i], params);
+            const screenCP = { x: cp.x * vp.scale + vp.x, y: cp.y * vp.scale + vp.y };
+            if (screenCP.x >= x0 && screenCP.x <= x1 && screenCP.y >= y0 && screenCP.y <= y1) sel.add(i);
+          }
+        }
+      }
+      activeSelRect = null;
+      updateSelHints(); drawAll();
+    }
+    singleDrag = null;
+    groupDrag  = null;
+    imgDragState = null;
+    if (panState && panState.canvas === canvas) {
+      panState = null;
+      canvas.style.cursor = '';
+    }
+    if (!isTarget && imgMoveActive) canvas.style.cursor = 'grab';
+    else if (!isTarget && !imgMoveActive) canvas.style.cursor = '';
+  });
+  canvas.addEventListener("wheel", (e) => {
+    const vp = getVP();
+    const { sx, sy } = canvasPt(e);
+    if (!isTarget && imgMoveActive && toolBgImage) {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      toolBgImage.wScale *= factor;
+      drawAll();
+      return;
+    }
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+    zoomVP(canvas, vp, sx, sy, factor);
+    drawAll();
+  }, { passive: false });
+  canvas.addEventListener("dblclick", (e) => {
+    if (pendingRadius) return;
+    const { sx, sy } = canvasPt(e);
+    const vp = getVP();
+    const params = getParams(); if (!params) return;
+    const base = screenToBase(canvas, sx, sy, vp);
+    const hitIdx = findNearestPoint(base.x, base.y, params, vp);
+    if (hitIdx < 0) return;
+    const sel = getSelected();
+    if (sel.has(hitIdx) && sel.size > 1) {
+      [...sel].sort((a, b) => b - a).forEach(i => points.splice(i, 1));
+      sel.clear();
+    } else {
+      points.splice(hitIdx, 1);
+      sel.delete(hitIdx);
+    }
+    updateDataRange(points, isTarget);
+    updateSelHints(); drawAll();
+    if (isTarget) syncTableFromTarget();
+    compensatedProfile = [];
+  });
+}
+
+// ----- tabulka (synchronizace) -----
+function syncTableFromTarget(){
+  if(updatingTable) return;
+  updatingTable=true;
+  const tbody=document.querySelector("#profileTable tbody");
+  if(!tbody){ updatingTable=false; return; }
+  tbody.innerHTML="";
+  for(let pt of targetPoints){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><input type="number" step="0.1" value="${pt.x.toFixed(3)}"></td>
+                 <td><input type="number" step="0.1" value="${(pt.y*2).toFixed(3)}"></td>
+                 <td><button class="delRowBtn">✖</button><button class="insBeforeBtn">📌 Před</button></td>`;
+    tbody.appendChild(tr);
+  }
+  attachTableButtons();
+  updatingTable=false;
+}
+function attachTableButtons(){
+  document.querySelectorAll(".delRowBtn").forEach(btn=>{ btn.removeEventListener("click",handleDelRow); btn.addEventListener("click",handleDelRow); });
+  document.querySelectorAll(".insBeforeBtn").forEach(btn=>{ btn.removeEventListener("click",handleInsBefore); btn.addEventListener("click",handleInsBefore); });
+  document.querySelectorAll("#profileTable input").forEach(inp=>{ inp.removeEventListener("change",syncTargetFromTable); inp.addEventListener("change",syncTargetFromTable); });
+}
+function handleDelRow(e){ if(updatingTable) return; e.target.closest("tr").remove(); syncTargetFromTable(); }
+function handleInsBefore(e){
+  if(updatingTable) return;
+  const row=e.target.closest("tr");
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td><input type="number" step="0.1" value="15"></td>
+               <td><input type="number" step="0.1" value="10"></td>
+               <td><button class="delRowBtn">✖</button><button class="insBeforeBtn">📌 Před</button></td>`;
+  row.parentNode.insertBefore(tr,row);
+  attachTableButtons();
+  syncTargetFromTable();
+}
+function syncTargetFromTable(){
+  if(updatingTable) return;
+  updatingTable=true;
+  const rows=document.querySelectorAll("#profileTable tbody tr");
+  const newPoints=[];
+  for(let row of rows){
+    const x=parseFloat(row.children[0].querySelector("input").value);
+    const d=parseFloat(row.children[1].querySelector("input").value);
+    if(!isNaN(x) && !isNaN(d) && d>=0) newPoints.push({x:x,y:d/2});
+  }
+  targetPoints.length = 0;
+  targetPoints.push(...newPoints);
+  updateDataRange(targetPoints, true);
+  drawAll();
+  showLathe3D();
+  compensatedProfile=[];
+  updatingTable=false;
+}
+function addTableRow(){
+  if(updatingTable) return;
+  const tbody=document.querySelector("#profileTable tbody");
+  if(!tbody) return;
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td><input type="number" step="0.1" value="20"></td>
+               <td><input type="number" step="0.1" value="12"></td>
+               <td><button class="delRowBtn">✖</button><button class="insBeforeBtn">📌 Před</button></td>`;
+  tbody.appendChild(tr);
+  attachTableButtons();
+  syncTargetFromTable();
+}
+
+// --- localStorage knihovna nožů (upraveno pro nový datový model) ---
+function updateLibrarySelects(){
+  const toolSelect=document.getElementById("toolLibrarySelect");
+  if(!toolSelect) return;
+  toolSelect.innerHTML='<option value="">--Vyberte nůž--</option>';
+  const tools=getTools();
+  tools.forEach(t=>{ const opt=document.createElement('option'); opt.value=t.id; opt.textContent=t.name; toolSelect.appendChild(opt); });
+}
+function saveToolToLibrary(){
+  const nameInput = document.getElementById("toolSaveName");
+  const name = nameInput?.value.trim();
+  if(!name){ showToast("Zadejte název nože", "warning"); return; }
+  const arr = getTools();
+  const existing = arr.find(t=>t.name===name);
+  const entry = existing || { id: generateId(), name, category:'rough', tipRadius:0.4, createdAt: new Date().toISOString() };
+  entry.points = toolPoints.map(p=>({x:p.x,y:p.y}));
+  entry.holderPoints = holderPoints.map(p=>({x:p.x,y:p.y}));
+  entry.updatedAt = new Date().toISOString();
+  if(!existing) arr.unshift(entry);
+  saveTools(arr);
+  updateLibrarySelects();
+  populateToolSelects();
+  showToast(`Uloženo „${name}"`, 'success');
+}
+function loadToolFromLibrary(id){
+  const tools=getTools();
+  const found=tools.find(t=>t.id===id);
+  if(found){
+    toolPoints.length = 0;
+    toolPoints.push(...(found.points||[]));
+    holderPoints.length = 0;
+    if(Array.isArray(found.holderPoints)) holderPoints.push(...found.holderPoints);
+    updateDataRange(toolPoints, false);
+    drawAll();
+    compensatedProfile=[];
+    currentToolId = found.id;
+    const title = document.getElementById('toolEditorTitle');
+    if(title) title.textContent = found.name;
+  }else showToast('Nenalezeno', 'error');
+}
+function deleteToolFromLibrary(id){
+  const tools=getTools();
+  const found = tools.find(t=>t.id===id);
+  if(!found) return;
+  const filtered=tools.filter(t=>t.id!==id);
+  saveTools(filtered);
+  updateLibrarySelects();
+  populateToolSelects();
+  showToast(`Smazáno „${found.name}"`, 'info');
+}
+
+// --- 3D vizualizace ---
+let scene, camera, renderer, controls3d, latheMesh, edgeLines, grid3d;
+let _defaultCamPos, _defaultTarget;
+let toolPathGroup = null;
+let tool3DGroup   = null;
+let _tool3DGroup = null;
+
+function drawToolPath3D() {
+  if (!scene) return;
+  const old = scene.getObjectByName('toolPathGroup');
+  if (old) {
+    scene.remove(old);
+    old.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) { if (Array.isArray(o.material)) o.material.forEach(m => m.dispose()); else o.material.dispose(); }
+    });
+  }
+  if (!currentGcodeLines || currentGcodeLines.length < 2) return;
+  const startDia = parseFloat(document.getElementById("startDia")?.value||20);
+  const Rs = startDia / 2;
+  const pts = [];
+  let x = 0, y = 0;
+  for (const line of currentGcodeLines) {
+    const l = line.trim().toUpperCase();
+    if (l.startsWith('G0') || l.startsWith('G1')) {
+      let nx = x, ny = y;
+      const mm = l.match(/([XY][\d\.\-]+)/g);
+      if (mm) {
+        mm.forEach(tok => {
+          const ax = tok[0], val = parseFloat(tok.slice(1));
+          if (ax === 'X') nx = val;
+          if (ax === 'Y') ny = val;
+        });
+      }
+      const radius = Math.max(0, Rs - ny);
+      pts.push(new THREE.Vector3(radius, nx, 0));
+      x = nx; y = ny;
+    }
+  }
+  if (pts.length < 2) return;
+  const group = new THREE.Group();
+  group.name = 'toolPathGroup';
+  group.renderOrder = 999;
+  const lineGeom = new THREE.BufferGeometry().setFromPoints(pts);
+  const lineMat  = new THREE.LineBasicMaterial({ color: 0xa3e635, linewidth: 2 });
+  group.add(new THREE.Line(lineGeom, lineMat));
+  const dotGeom = new THREE.BufferGeometry().setFromPoints(pts);
+  const dotMat  = new THREE.PointsMaterial({ color: 0xa3e635, size: 0.35, sizeAttenuation: true });
+  group.add(new THREE.Points(dotGeom, dotMat));
+  scene.add(group);
+}
+function drawTool3D() {
+  if (!scene) return;
+  const effectiveTool = getMirroredToolPoints();
+  if (!effectiveTool || effectiveTool.length < 3) return;
+  const old = scene.getObjectByName('tool3DGroup');
+  if (old) {
+    scene.remove(old);
+    old.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) { if (Array.isArray(o.material)) o.material.forEach(m => m.dispose()); else o.material.dispose(); }
+    });
+  }
+  _tool3DGroup = null;
+  const shape = new THREE.Shape();
+  shape.moveTo(effectiveTool[0].x, effectiveTool[0].y);
+  for (let i = 1; i < effectiveTool.length; i++) shape.lineTo(effectiveTool[i].x, effectiveTool[i].y);
+  shape.closePath();
+  const geom = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: 10, bevelEnabled: false });
+  const startDia = parseFloat(document.getElementById("startDia")?.value||20);
+  const Rs = startDia / 2;
+  geom.translate(0, Rs, 10);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xf87171, roughness: 0.35, metalness: 0.55, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.name = 'tool3DMesh';
+  mesh.rotateZ(-Math.PI / 2);
+  mesh.rotateY(Math.PI);
+  const edges = new THREE.EdgesGeometry(geom, 15);
+  const wire  = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xf87171}));
+  wire.rotateZ(-Math.PI / 2); wire.rotateY(Math.PI);
+  const group = new THREE.Group();
+  group.name = 'tool3DGroup';
+  group.add(mesh); group.add(wire);
+  const maxR = targetPoints.length ? Math.max(...targetPoints.map(p => p.y), 2) : Rs;
+  group.position.set(0, 0, 19.99);
+  scene.add(group);
+  _tool3DGroup = group;
+  if (window._toolPreviewX !== undefined && window._toolPreviewY !== undefined) updateTool3DPosition(window._toolPreviewX, window._toolPreviewY);
+}
+function updateTool3DPosition(xPos, yPos) {
+  if (!_tool3DGroup) return;
+  if (xPos === undefined || yPos === undefined) return;
+  const Rs = (parseFloat(document.getElementById("startDia")?.value||20)) / 2;
+  const radius = Math.max(0, Rs - yPos);
+  _tool3DGroup.position.set(-yPos, xPos);
+}
+function init3D(){
+  const container = document.getElementById("viewer3d");
+  if(!container) return;
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x060c14);
+  camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.1, 1000);
+  camera.position.set(30, 18, 55);
+  _defaultCamPos = camera.position.clone();
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  container.appendChild(renderer.domElement);
+  controls3d = new TrackballControls(camera, renderer.domElement);
+  controls3d.rotateSpeed = 2.5;
+  controls3d.zoomSpeed = 1.2;
+  _defaultTarget = controls3d.target.clone();
+  const keyLight = new THREE.DirectionalLight(0xd4f1ff, 2.2);
+  keyLight.position.set(30, 40, 40);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(1024, 1024);
+  scene.add(keyLight);
+  const rimLight = new THREE.DirectionalLight(0xd4f1ff, 1.4);
+  rimLight.position.set(-25, 10, -30);
+  scene.add(rimLight);
+  const fillLight = new THREE.DirectionalLight(0xd4f1ff, 0.7);
+  fillLight.position.set(-20, -15, 20);
+  scene.add(fillLight);
+  scene.add(new THREE.AmbientLight(0x0a1828, 2.5));
+  grid3d = new THREE.GridHelper(200, 40, 0x06b6d4, 0x0e2233);
+  grid3d.material.opacity = 0.18;
+  grid3d.material.transparent = true;
+  scene.add(grid3d);
+  const resetBtn = document.getElementById('resetCamBtn');
+  if(resetBtn) resetBtn.onclick = () => {
+    if (!latheMesh || !latheMesh.geometry || !latheMesh.geometry.boundingBox) {
+      // Záložní pozice, když ještě není načtena hřídel
+      camera.position.set(0, 40, 10);
+      controls3d.target.set(0, 0, 0);
+      camera.up.set(0, 0, 1);
+      controls3d.update();
+      return;
+    }
+    const box = latheMesh.geometry.boundingBox;
+    const center = new THREE.Vector3(); box.getCenter(center);
+    const size  = new THREE.Vector3(); box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+
+    // Pudorys: kamera shora podél osy Y (hřídel leží v ose Y)
+    // + malý offset v Z, aby se předešlo gimbal locku
+    const distance = Math.max(maxDim * 0.8, 20);
+    camera.position.set(center.x + distance, center.y - maxDim * 0.3, center.z);
+    camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+    camera.up.set(-1, 0, 0);           // stabilní „sever“ = +Z
+    controls3d.target.copy(center);
+    controls3d.update();
+  };
+  const matCheck = document.getElementById('materialRemovalCheck');
+  if (matCheck) matCheck.onchange = () => {
+    if (matCheck.checked) { materialProfile = null; _lastMaterialLine = -2; maybeUpdateMaterial(currentLineIndex); }
+    else { removeRawMesh(); _lastMaterialLine = -2; }
+  };
+  function animate() {
+    requestAnimationFrame(animate);
+    controls3d.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+  window.addEventListener("resize", () => {
+    const w = container.clientWidth, h = container.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+}
+function showLathe3D() {
+  if (!scene) init3D();
+  if(!scene) return;
+  scene.children = scene.children.filter(c => !(c === latheMesh || c === edgeLines));
+  if (latheMesh) { latheMesh.geometry.dispose(); latheMesh.material.dispose(); latheMesh = null; }
+  if (edgeLines) { edgeLines.geometry.dispose(); edgeLines.material.dispose(); edgeLines = null; }
+  if (targetPoints.length < 2) return;
+  const vec = [];
+  vec.push(new THREE.Vector2(0, targetPoints[0].x));
+  for (const p of targetPoints) vec.push(new THREE.Vector2(Math.max(0, p.y), p.x));
+  vec.push(new THREE.Vector2(0, targetPoints[targetPoints.length - 1].x));
+  if (vec.length < 2) return;
+  const geometry = new THREE.LatheGeometry(vec, 96);
+  const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.28, metalness: 0.18, envMapIntensity: 0.6 });
+  latheMesh = new THREE.Mesh(geometry, material);
+  latheMesh.castShadow = true;
+  latheMesh.receiveShadow = true;
+  scene.add(latheMesh);
+  const edgesGeom = new THREE.EdgesGeometry(geometry, 25);
+  edgeLines = new THREE.LineSegments(edgesGeom, new THREE.LineBasicMaterial({ color: 0x06b6d4, opacity: 0.55, transparent: true }));
+  scene.add(edgeLines);
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const center = new THREE.Vector3(); box.getCenter(center);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z);
+  controls3d.target.copy(center);
+  camera.position.set(center.x + maxDim * 0.6, center.y + maxDim * 0.5, center.z + maxDim * 1.3);
+  _defaultCamPos = camera.position.clone();
+  _defaultTarget = controls3d.target.clone();
+  controls3d.update();
+  if (grid3d) grid3d.position.y = box.min.y;
+  drawToolPath3D();
+  drawTool3D();
+}
+
+// ── Animace odebírání materiálu ──────────────────────────────────────────────
+let rawMesh = null;
+let materialProfile = null;
+let _lastMaterialLine = -2;
+const MAT_SLICES = 250;
+
+function initMaterialProfile() {
+  if (targetPoints.length < 2) return;
+  const Rs = parseFloat(document.getElementById("startDia").value) / 2 || 10;
+  const sorted = [...targetPoints].sort((a, b) => a.x - b.x);
+  const zMin = Math.min(0, sorted[0].x);
+  const zMax = sorted[sorted.length - 1].x;
+  materialProfile = [];
+  for (let i = 0; i <= MAT_SLICES; i++) {
+    materialProfile.push({ z: zMin + (zMax - zMin) * i / MAT_SLICES, r: Rs });
+  }
+}
+
+function applyGcodeMovesToProfile(upToLine) {
+  if (!materialProfile) return;
+  const Rs = parseFloat(document.getElementById("startDia").value) / 2 || 10;
+  for (const s of materialProfile) s.r = Rs;
+  if (!currentGcodeLines.length || upToLine < 0) return;
+  const dz = materialProfile.length > 1 ? materialProfile[1].z - materialProfile[0].z : 0.1;
+  let x = 0, y = 0;
+  const limit = Math.min(upToLine, currentGcodeLines.length - 1);
+  for (let li = 0; li <= limit; li++) {
+    const line = currentGcodeLines[li];
+    if (!line.startsWith('G1') && !line.startsWith('G0')) { x = 0; y = 0; continue; }
+    const isG1 = line.startsWith('G1');
+    let nx = x, ny = y;
+    const mx = line.match(/X([\d.\-]+)/), my = line.match(/Y([\d.\-]+)/);
+    if (mx) nx = parseFloat(mx[1]);
+    if (my) ny = parseFloat(my[1]);
+    if (isG1) {
+      if (Math.abs(nx - x) > 1e-6) {
+        // Axiální pohyb – průběžný řez
+        const z0 = Math.min(x, nx), z1 = Math.max(x, nx);
+        const yAtZ0 = x <= nx ? y : ny, yAtZ1 = x <= nx ? ny : y;
+        for (const s of materialProfile) {
+          if (s.z < z0 - dz || s.z > z1 + dz) continue;
+          const t = z1 > z0 ? Math.max(0, Math.min(1, (s.z - z0) / (z1 - z0))) : 0;
+          const rCut = Math.max(0, Rs - (yAtZ0 + (yAtZ1 - yAtZ0) * t));
+          if (rCut < s.r) s.r = rCut;
+        }
+      } else {
+        // Radiální pohyb – čelo nebo zápich
+        const rCut = Math.max(0, Rs - Math.max(ny, y));
+        for (const s of materialProfile) {
+          if (Math.abs(s.z - nx) <= dz * 1.5 && rCut < s.r) s.r = rCut;
+        }
+      }
+    }
+    x = nx; y = ny;
+  }
+}
+
+function rebuildRawMesh() {
+  if (!scene || !materialProfile) return;
+  const old = scene.getObjectByName('rawMaterialMesh');
+  if (old) { scene.remove(old); old.geometry.dispose(); old.material.dispose(); }
+  rawMesh = null;
+  const vec = [];
+  vec.push(new THREE.Vector2(0, materialProfile[0].z));
+  for (const s of materialProfile) vec.push(new THREE.Vector2(s.r, s.z));
+  vec.push(new THREE.Vector2(0, materialProfile[materialProfile.length - 1].z));
+  const geo = new THREE.LatheGeometry(vec, 72);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xb0c4de, roughness: 0.55, metalness: 0.25 });
+  rawMesh = new THREE.Mesh(geo, mat);
+  rawMesh.name = 'rawMaterialMesh';
+  rawMesh.castShadow = true;
+  scene.add(rawMesh);
+}
+
+function removeRawMesh() {
+  if (!scene) return;
+  const old = scene.getObjectByName('rawMaterialMesh');
+  if (old) { scene.remove(old); old.geometry.dispose(); old.material.dispose(); }
+  rawMesh = null;
+}
+
+function maybeUpdateMaterial(idx) {
+  const cb = document.getElementById('materialRemovalCheck');
+  if (!cb || !cb.checked) { removeRawMesh(); _lastMaterialLine = -2; return; }
+  if (idx === _lastMaterialLine) return;
+  _lastMaterialLine = idx;
+  if (!materialProfile) initMaterialProfile();
+  applyGcodeMovesToProfile(idx);
+  rebuildRawMesh();
+  const info = document.getElementById('materialRemovalInfo');
+  if (info) info.textContent = idx >= 0 ? `řádek ${idx + 1} / ${currentGcodeLines.length}` : '– klikni na řádek G-code';
+}
+
+function optimizeGcode(gcode) {
+  if (!gcode || gcode.length === 0) return [];
+  const out = [];
+  let buffer = null;
+  let firstIndex = -1;
+  function flush(lastLine) {
+    if (buffer) {
+      if (out[firstIndex] !== lastLine) out.push(lastLine);
+      buffer = null; firstIndex = -1;
+    }
+  }
+  for (let i = 0; i < gcode.length; i++) {
+    const line = gcode[i].trim();
+    if (line.startsWith("G1")) {
+      const yMatch = line.match(/Y([\d.\-]+)/);
+      const fMatch = line.match(/F([\d.\-]+)/);
+      const yVal = yMatch ? parseFloat(yMatch[1]) : null;
+      const fVal = fMatch ? parseFloat(fMatch[1]) : null;
+      if (!buffer) {
+        buffer = { y: yVal, f: fVal, lastLine: line };
+        out.push(line); firstIndex = out.length - 1;
+      } else {
+        if (buffer.y === yVal && buffer.f === fVal) {
+          buffer.lastLine = line;
+          if ((out.length - 1) !== firstIndex) out[out.length - 1] = line;
+        } else {
+          flush(buffer.lastLine);
+          out.push(line); firstIndex = out.length - 1;
+          buffer = { y: yVal, f: fVal, lastLine: line };
+        }
+      }
+    } else {
+      if (buffer) flush(buffer.lastLine);
+      out.push(line);
+    }
+  }
+  if (buffer) flush(buffer.lastLine);
+  return out;
+}
+function calcMachiningTime(gcodeLines, feed){
+  const feedRate=feed;
+  const rapidRate=180;
+  let x=0,y=0,totalTime=0;
+  for(const line of gcodeLines){
+    const l=line.trim().toUpperCase();
+    if(l.startsWith("G0")||l.startsWith("G1")){
+      let nx=x, ny=y;
+      const mm=l.match(/([XY][0-9\.\-]+)/g);
+      if(mm){
+        mm.forEach(tok=>{
+          const ax=tok[0], val=parseFloat(tok.slice(1));
+          if(ax==="Y") ny=val;
+          if(ax==="X") nx=val;
+        });
+      }
+      const dist=Math.sqrt((nx-x)**2+(ny-y)**2);
+      const rate=l.startsWith("G0")?rapidRate:feedRate;
+      totalTime += dist / rate;
+      x=nx; y=ny;
+    }
+  }
+  const sec=Math.round(totalTime);
+  const tm = document.getElementById("timeMsg");
+  if(tm) tm.innerText="Odhadovaný čas: "+sec+" min";
+}
+function generateUpichnuti() {
+    const diameter = parseFloat(document.getElementById('startDia')?.value||20);
+    const depthStep = parseFloat(document.getElementById('depthStep')?.value||0.05);
+    const sideStep = parseFloat(document.getElementById('sideStep')?.value||0.1);
+    const xPart = parseFloat(document.getElementById('xPart')?.value||30);
+    const feed = parseFloat(document.getElementById('feedupichnuti')?.value||50);
+    const clearance = parseFloat(document.getElementById('retractRad')?.value||-0.5);
+    if (isNaN(diameter) || isNaN(depthStep) || isNaN(sideStep) || isNaN(xPart) || isNaN(feed) || isNaN(clearance)) {
+        alert('Vyplň všechna pole platnými čísly.'); return;
+    }
+    if (diameter <= 0 || depthStep <= 0 || feed <= 0) {
+        alert('Průměr, hloubka vpichu a posuv musí být kladné.'); return;
+    }
+    const radius = diameter / 2;
+    const steps = Math.ceil(radius / depthStep);
+    let gcode = [];
+    gcode.push('G21 G90 G94'); gcode.push('M3'); gcode.push(`F${feed}`);
+    gcode.push('G0 X0 Y0'); gcode.push(`G0 Y${clearance.toFixed(3)}`); gcode.push(`G0 X${xPart.toFixed(3)}`);
+    for (let i = 1; i <= steps; i++) {
+        const targetY = Math.min(i * depthStep, radius);
+        const targetYback = targetY - (depthStep * 2);
+        const currentX = (i % 2 === 1) ? xPart : xPart + sideStep;
+        if (i === 1) {} else { gcode.push(`G0 X${currentX.toFixed(3)}`); }
+        gcode.push(`G1 Y${targetY.toFixed(3)} F${feed}`);
+        gcode.push(`G0 Y${targetYback.toFixed(3)}`);
+    }
+    gcode.push(`G0 Y${clearance.toFixed(3)}`);
+    gcode.push('G0 X0'); gcode.push('M5'); gcode.push('M2');
+    const out = document.getElementById('output');
+    if(out) out.value = gcode.join('\n');
+    currentGcodeLines = gcode.filter(l => l.trim() !== '');
+    drawAll();
+}
+function fmt(v){return v.toFixed(3).replace(/\.?0+$/,'');}
+function generateGcode(){
+  if(!compensatedProfile.length){ showToast("Nejprve spusťte simulaci", "warning"); return; }
+  const prof=compensatedProfile.map(p=>({z:p.x,d:p.y*2}));
+  const startDia=parseFloat(document.getElementById("startDia")?.value||20);
+  const stepRad=parseFloat(document.getElementById("stepRad")?.value||0.1);
+  const retractRad=parseFloat(document.getElementById("retractRad")?.value||-0.5);
+  const feed=parseFloat(document.getElementById("feed")?.value||150);
+  const feedDokonceni=parseFloat(document.getElementById("feedDokonceni")?.value||80) || feed;
+  const dokonceni=parseFloat(document.getElementById("dokonceni")?.value||0.05) || 0;
+  const mode=document.getElementById("mode")?.value||'all';
+  const Rs=startDia/2;
+  const lines=["G21 G90 G94", "M3", `F${fmt(feed)}`,"G0 X0 Y0"];
+  const firstX = prof[0].z;
+  if(firstX > 0.001 && (mode==="rough" || mode==="all")){
+    const faceXLimit = Math.max(0, firstX - dokonceni);
+    const nFace = Math.ceil(faceXLimit / stepRad);
+    if(nFace > 0){
+      lines.push("; Čelní obrábění");
+      lines.push(`G0 X0 Y${fmt(retractRad)}`);
+      for(let n=1; n<=nFace; n++){
+        const faceX = Math.min(n * stepRad, faceXLimit);
+        lines.push(`G0 X${fmt(faceX)} Y${fmt(retractRad)}`);
+        lines.push(`G1 X${fmt(faceX)} Y${fmt(Rs)} F${fmt(feed)}`);
+        lines.push(`G0 X${fmt(retractRad)}`);
+        lines.push(`G0 Y${fmt(retractRad)}`);
+      }
+      lines.push("; Konec čelního obrábění");
+    }
+  }
+  if(mode==="rough" || mode==="all"){
+    let segData=[];
+    for(let i=0;i<prof.length-1;i++){
+      const p0=prof[i],p1=prof[i+1];
+      if(p0.z===p1.z) continue;
+      const off0=Math.max(0, Rs-p0.d/2 - dokonceni);
+      const off1=Math.max(0, Rs-p1.d/2 - dokonceni);
+      const nPass=Math.max(1,Math.ceil(Math.max(off0,off1)/stepRad));
+      segData.push({z0:p0.z,z1:p1.z,off0,off1,nPass,done:0});
+    }
+    let remaining=true;
+    while(remaining){
+      remaining=false;
+      for(let s of segData) if(s.done<s.nPass) remaining=true;
+      let blockStart=0;
+      while(blockStart<segData.length){
+        let blockEnd=blockStart;
+        while(blockEnd+1<segData.length && segData[blockEnd].done<segData[blockEnd].nPass && segData[blockEnd+1].done<segData[blockEnd+1].nPass) blockEnd++;
+        const block=segData.slice(blockStart,blockEnd+1);
+        const maxDepth=Math.min(...block.map(s=>s.nPass-s.done));
+        for(let k=1;k<=maxDepth;k++){
+            const m = undercuts.find(m => fmt(block[0].z0) >= m.xmin && fmt(block[0].z0) <= m.xmax);
+            if(m && m.ysafe > 0){ 
+                lines.push(`G0 X${fmt(m.xmin)}`);lines.push(`G0 Y${fmt(m.ysafe)}`);lines.push(`G0 X${fmt(block[0].z0)}`); 
+            }else{
+                lines.push(`G0 X${fmt(block[0].z0)} Y${fmt(retractRad)}`);
+            }
+            let lastx=0;
+          for(let s of block){
+            const depth=s.done+k;
+            const y0=Math.min(depth*stepRad,s.off0);
+            const y1=Math.min(depth*stepRad,s.off1);
+            lines.push(`G1 X${fmt(s.z0)} Y${fmt(y0)} F${fmt(feed)}`);
+            lines.push(`G1 X${fmt(s.z1)} Y${fmt(y1)} F${fmt(feed)}`);
+            lastx = fmt(s.z1);
+          }
+          const lx = parseFloat(lastx);
+          const u = undercuts.find(u => lx >= u.xmin && lx <= u.xmax);
+          if(u){ lines.push(`G0 X${fmt(u.xmin)}`); }
+          lines.push(`G0 Y${fmt(retractRad)}`);
+        }
+        block.forEach(s=>s.done+=maxDepth);
+        blockStart=blockEnd+1;
+      }
+    }
+  }
+  if((mode==="finish" || mode==="all") && dokonceni >= 0){
+    lines.push(`G0 X0 Y${fmt(retractRad)}`);
+    for(let i=0;i<prof.length;i++){
+      const off=Math.max(0,Rs-prof[i].d/2);
+      lines.push(`G1 X${fmt(prof[i].z)} Y${fmt(off)} F${fmt(feedDokonceni)}`);
+    }
+    lines.push(`G0 Y${fmt(retractRad)}`);
+    if(firstX > 0.001){
+      lines.push("; Dokončení čela");
+      lines.push(`G0 X${fmt(firstX)} Y${fmt(retractRad)}`);
+      lines.push(`G1 X${fmt(firstX)} Y${fmt(Rs)} F${fmt(feedDokonceni)}`);
+      lines.push(`G0 X${fmt(retractRad)}`);
+      lines.push(`G0 Y${fmt(retractRad)}`);
+    }
+  }
+  lines.push("G0 X0", "M5", "M2");
+  let cleaned=lines.filter((l,i)=>i===0 || l!==lines[i-1]);
+  cleaned = optimizeGcode(cleaned);
+  calcMachiningTime(cleaned,feed);
+  const out = document.getElementById("output");
+  if(out) out.value=cleaned.join("\n");
+  currentGcodeLines=cleaned;
+  materialProfile = null; _lastMaterialLine = -2; removeRawMesh();
+  drawAll();
+  drawToolPath3D();
+  drawTool3D();
+}
+function downloadGcode(){
+  const code=document.getElementById("output")?.value||'';
+  if(!code.trim()) return;
+  const blob=new Blob([code],{type:"text/plain"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="program.gcode"; a.click(); URL.revokeObjectURL(blob);
+}
+let currentLineIndex = -1;
+let playState = { active: false, speed: 1, currentLineIdx: 0, timeoutId: null };
+let _toolAnim = null;
+function getPositionAtLine(idx){
+  let x=0,y=0;
+  for(let i=0;i<=idx && i<currentGcodeLines.length;i++){
+    const line=currentGcodeLines[i];
+    let mx=line.match(/X([\d\.\-]+)/), my=line.match(/Y([\d\.\-]+)/);
+    if(mx) x=parseFloat(mx[1]);
+    if(my) y=parseFloat(my[1]);
+  }
+  return {x,y};
+}
+function easeInOut(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+function tickToolAnim(timestamp){
+  if(!_toolAnim) return;
+  const { fromX, fromY, toX, toY, startTime, duration, onDone } = _toolAnim;
+  const raw = Math.min((timestamp - startTime) / duration, 1);
+  const t   = easeInOut(raw);
+  window._toolPreviewX = fromX + (toX - fromX) * t;
+  window._toolPreviewY = fromY + (toY - fromY) * t;
+  drawTargetCanvas();
+  updateTool3DPosition(window._toolPreviewX, window._toolPreviewY);
+  if(raw < 1){
+    requestAnimationFrame(tickToolAnim);
+  } else {
+    window._toolPreviewX = toX; window._toolPreviewY = toY;
+    const cb = onDone; _toolAnim = null;
+    drawTargetCanvas();
+    updateTool3DPosition(toX, toY);
+    maybeUpdateMaterial(currentLineIndex);
+    if (cb) cb();
+  }
+}
+function setPreviewFromLineIndex(idx){
+  if(!currentGcodeLines.length || idx < 0 || idx >= currentGcodeLines.length){
+    _toolAnim = null;
+    window._toolPreviewX = undefined; window._toolPreviewY = undefined;
+    drawTargetCanvas(); return;
+  }
+  if (playState.active) stopPlayback();
+  updateLineNumbers();
+  const pos = getPositionAtLine(idx);
+  const fromX = window._toolPreviewX ?? pos.x;
+  const fromY = window._toolPreviewY ?? pos.y;
+  const dx = pos.x - fromX, dy = pos.y - fromY;
+  const dist = Math.hypot(dx, dy);
+  if(dist < 0.05 || dist > 200 || _toolAnim !== null){
+    _toolAnim = null;
+    window._toolPreviewX = pos.x; window._toolPreviewY = pos.y;
+    drawTargetCanvas();
+    updateTool3DPosition(pos.x, pos.y);
+    maybeUpdateMaterial(idx);
+    return;
+  }
+  const duration = Math.min(80 + dist * 3, 400);
+  _toolAnim = { fromX, fromY, toX: pos.x, toY: pos.y, startTime: performance.now(), duration };
+  requestAnimationFrame(tickToolAnim);
+}
+function setupGcodePreview(){
+  const ta = document.getElementById("output");
+  if(!ta) return;
+  function updateFromCursor(){
+    if(!currentGcodeLines.length) return;
+    const idx = ta.value.substr(0, ta.selectionStart).split("\n").length - 1;
+    if(idx !== currentLineIndex){ currentLineIndex = idx; setPreviewFromLineIndex(currentLineIndex); }
+  }
+  ta.addEventListener("click",   updateFromCursor);
+  ta.addEventListener("keyup",   updateFromCursor);
+  ta.addEventListener("touchend",updateFromCursor);
+  document.addEventListener("selectionchange", ()=>{
+    if(document.activeElement === ta) updateFromCursor();
+  });
+  ta.addEventListener("input", () => {
+    currentGcodeLines = ta.value.split("\n").filter(l => l.trim() !== "");
+    drawAll();
+    updateLineNumbers();
+  });
+}
+function setupLineNumbers() {
+  const ta = document.getElementById("output");
+  if (!ta) return;
+  const ro = new ResizeObserver(() => updateLineNumbers());
+  ro.observe(ta);
+  updateLineNumbers();
+}
+function updateLineNumbers() {
+  const ta = document.getElementById("output");
+  if (!ta) return;
+  const lines = ta.value.split("\n");
+  if (!lines.length) { ta.style.backgroundImage = 'none'; return; }
+  const computed = window.getComputedStyle(ta);
+  const lineHeight = parseFloat(computed.lineHeight);
+  const paddingTop = parseFloat(computed.paddingTop);
+  const paddingBottom = parseFloat(computed.paddingBottom);
+  const fontSize = parseFloat(computed.fontSize);
+  const fontFamily = computed.fontFamily.replace(/"/g, "'");
+  const svgHeight = paddingTop + lines.length * lineHeight + paddingBottom;
+  const baseline = paddingTop + fontSize * 0.82;
+  let svgContent = '';
+  for (let i = 0; i < lines.length; i++) {
+    const y = baseline + i * lineHeight;
+    svgContent += `<text x="42" y="${y.toFixed(1)}" text-anchor="end" fill="#64748b" font-family="${fontFamily}" font-size="${fontSize}px">${i + 1}</text>`;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="${svgHeight.toFixed(1)}">${svgContent}</svg>`;
+  const encoded = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  ta.style.backgroundImage = `url("${encoded}")`;
+  ta.style.backgroundSize = `50px ${svgHeight.toFixed(1)}px`;
+}
+function highlightGcodeLine(idx) {
+  const ta = document.getElementById("output");
+  if(!ta) return;
+  const lines = ta.value.split("\n");
+  if (idx < 0 || idx >= lines.length) return;
+  let pos = 0;
+  for (let i = 0; i < idx && i < lines.length; i++) pos += lines[i].length + 1;
+  ta.focus();
+  ta.setSelectionRange(pos, pos + lines[idx].length);
+  const lineHeight = ta.scrollHeight / Math.max(1, lines.length);
+  ta.scrollTop = Math.max(0, lineHeight * idx - ta.clientHeight / 2);
+  currentLineIndex = idx;
+}
+function stopPlayback() {
+  playState.active = false;
+  if (playState.timeoutId) { clearTimeout(playState.timeoutId); playState.timeoutId = null; }
+  _toolAnim = null;
+  playState.currentLineIdx = 0;
+  updatePlayButtons();
+}
+function setPlaySpeed(speed) {
+  playState.speed = speed;
+  updatePlayButtons();
+}
+function updatePlayButtons() {
+  const btnPlay = document.getElementById('playGcodeBtn');
+  const btnPause = document.getElementById('pauseGcodeBtn');
+  const btnStop = document.getElementById('stopGcodeBtn');
+  if (btnPlay) btnPlay.style.display = playState.active ? 'none' : 'inline-block';
+  if (btnPause) btnPause.style.display = playState.active ? 'inline-block' : 'none';
+}
+function playNextMove() {
+  if (!playState.active) return;
+  if (playState.currentLineIdx >= currentGcodeLines.length) {
+    stopPlayback();
+    showToast('Přehrávání dokončeno', 'success');
+    return;
+  }
+  const fromPos = {
+    x: window._toolPreviewX !== undefined ? window._toolPreviewX : getPositionAtLine(playState.currentLineIdx).x,
+    y: window._toolPreviewY !== undefined ? window._toolPreviewY : getPositionAtLine(playState.currentLineIdx).y
+  };
+  let nextIdx = playState.currentLineIdx + 1;
+  while (nextIdx < currentGcodeLines.length) {
+    const line = currentGcodeLines[nextIdx].trim().toUpperCase();
+    if (line.startsWith('G0') || line.startsWith('G1')) {
+      const hasX = /X[\d\.\-]+/.test(line);
+      const hasY = /Y[\d\.\-]+/.test(line);
+      if (hasX || hasY) break;
+    }
+    nextIdx++;
+  }
+  if (nextIdx >= currentGcodeLines.length) { stopPlayback(); showToast('Přehrávání dokončeno', 'success'); return; }
+  const toPos = getPositionAtLine(nextIdx);
+  const line = currentGcodeLines[nextIdx].trim().toUpperCase();
+  const isG0 = line.startsWith('G0');
+  let feedRate = parseFloat(document.getElementById("feed")?.value||150);
+  if (!isG0) {
+    const fMatch = line.match(/F([\d\.\-]+)/);
+    if (fMatch) feedRate = parseFloat(fMatch[1]);
+  } else { feedRate = 200; }
+  const dist = Math.hypot(toPos.x - fromPos.x, toPos.y - fromPos.y);
+  const timeMs = dist > 0 ? ((dist / feedRate) * 60 * 1000) / playState.speed : 50;
+  const duration = Math.max(timeMs, 15);
+  highlightGcodeLine(nextIdx);
+  _toolAnim = {
+    fromX: fromPos.x, fromY: fromPos.y, toX: toPos.x, toY: toPos.y,
+    startTime: performance.now(), duration: duration,
+    onDone: () => { playState.currentLineIdx = nextIdx; playNextMove(); }
+  };
+  requestAnimationFrame(tickToolAnim);
+}
+function startPlayback() {
+  if (!currentGcodeLines.length) { showToast('Nejprve vygenerujte G-code', 'warning'); return; }
+  stopPlayback();
+  playState.active = true;
+  playState.currentLineIdx = 0;
+  window._toolPreviewX = 0; window._toolPreviewY = 0;
+  updatePlayButtons();
+  playNextMove();
+}
+function pausePlayback() {
+  playState.active = false;
+  if (playState.timeoutId) { clearTimeout(playState.timeoutId); playState.timeoutId = null; }
+  _toolAnim = null;
+  updatePlayButtons();
+}
+function resumePlayback() {
+  if (!currentGcodeLines.length) return;
+  playState.active = true;
+  updatePlayButtons();
+  playNextMove();
+}
+
+// --- inicializace ---
+window.addEventListener("load",()=>{
+  renderDashboard();
+  // Eventy pro editor hřídele (s kontrolou existence elementů)
+  const bind = (id,fn)=>{ const el=document.getElementById(id); if(el) el.onclick=fn; };
+  bind("resetZoomTarget", ()=>resetVP(targetVP, targetCanvas, true));
+  bind("resetZoomTool", ()=>resetVP(toolVP, toolCanvas, false));
+
+  // Synchronizace snap mezi editory
+  const snapSize     = document.getElementById('snapSize');
+  const snapSizeTool = document.getElementById('snapSizeTool');
+  if (snapSize && snapSizeTool) {
+    snapSizeTool.value = snapSize.value;
+    snapSize.addEventListener('input',     () => { snapSizeTool.value = snapSize.value; });
+    snapSizeTool.addEventListener('input', () => { snapSize.value = snapSizeTool.value; });
+  }
+  bind("simulateBtn", ()=>{ stepX=parseFloat(document.getElementById("stepX")?.value||0.01); stepY=parseFloat(document.getElementById("stepY")?.value||0.005); compensatedProfile=computeCompensatedProfile(); drawAll(); showLathe3D(); });
+  bind("generateUpichnutiBtn", ()=>{generateUpichnuti();updateLineNumbers();});
+  bind("clearTargetBtn", ()=>{ targetPoints.length=0; updateDataRange(targetPoints, true); syncTableFromTarget(); drawAll(); compensatedProfile=[]; showLathe3D(); });
+  bind("clearToolBtn", ()=>{ toolPoints.length=0; updateDataRange(toolPoints, false); drawAll(); });
+  bind("addRowBtn", addTableRow);
+  bind("syncTableBtn", syncTargetFromTable);
+  bind("saveProfileBtn", ()=>{ const data=JSON.stringify({targetPoints,toolPoints}); const blob=new Blob([data],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="profil.json"; a.click(); URL.revokeObjectURL(blob); });
+  bind("loadProfileBtn", ()=>{ const lf=document.getElementById("loadFile"); if(lf) lf.click(); });
+  const lf=document.getElementById("loadFile"); if(lf) lf.onchange=e=>{ if(e.target.files[0]){ const reader=new FileReader(); reader.onload=ev=>{ const data=JSON.parse(ev.target.result); if(data.targetPoints){ targetPoints.length=0; targetPoints.push(...data.targetPoints); } if(data.toolPoints){ toolPoints.length=0; toolPoints.push(...data.toolPoints); } updateDataRange(targetPoints, true); updateDataRange(toolPoints, false); syncTableFromTarget(); drawAll(); compensatedProfile=[]; showLathe3D(); }; reader.readAsText(e.target.files[0]); } };
+  bind("genGcodeBtn", generateGcode);
+  bind("downloadGcodeBtn", downloadGcode);
+  const sp=document.getElementById("showPassesCheckbox"); if(sp) sp.onchange=()=>drawAll();
+  const kn=document.getElementById("knife"); if(kn) kn.onchange=()=>{ if(compensatedProfile.length) compensatedProfile=computeCompensatedProfile(); drawAll(); };
+  const sx=document.getElementById("stepX"); if(sx) sx.onchange=()=>{ stepX=parseFloat(sx.value); };
+  const sy=document.getElementById("stepY"); if(sy) sy.onchange=()=>{ stepY=parseFloat(sy.value); };
+  const sd=document.getElementById("startDia"); if(sd) sd.onchange=()=>{ updateDataRange(targetPoints, true); drawAll(); };
+  bind("playGcodeBtn", () => { if (!playState.active && playState.currentLineIdx > 0 && playState.currentLineIdx < currentGcodeLines.length) resumePlayback(); else startPlayback(); });
+  bind("pauseGcodeBtn", pausePlayback);
+  bind("stopGcodeBtn", () => { stopPlayback(); window._toolPreviewX = undefined; window._toolPreviewY = undefined; drawAll(); });
+  const speedInput = document.getElementById('speedInput');
+  if (speedInput) {
+    const savedSpeed = parseFloat(speedInput.value);
+    if (!isNaN(savedSpeed) && savedSpeed > 0) {
+      playState.speed = Math.min(100, Math.max(1, savedSpeed));
+    }
+    speedInput.addEventListener('change', () => {
+      let v = parseFloat(speedInput.value);
+      if (isNaN(v) || v < 1) v = 1;
+      if (v > 100) v = 100;
+      speedInput.value = v;
+      setPlaySpeed(v);
+    });
+  }
+
+  // Tool editor events
+  // Knihovna nožů je spravována z dashboardu
+  bind("radiusModeBtnTool", ()=>{
+    radiusModeActive=!radiusModeActive;
+    if (!radiusModeActive && pendingRadius) { pendingRadius = null; drawAll(); }
+    const rs = document.getElementById("radiusStatusTool");
+    if(rs) rs.innerText=radiusModeActive?"✔️ AKTIVNÍ – klikni na vrchol":"⚙️ Režim rádius neaktivní";
+  });
+  bind("toolModeBtn", () => {
+    toolDrawMode = toolDrawMode === 'knife' ? 'holder' : 'knife';
+    const btn = document.getElementById("toolModeBtn");
+    if (toolDrawMode === 'holder') {
+      btn.textContent = '🟠 Kreslím: Držák';
+      btn.style.background = 'linear-gradient(180deg,#c2410c,#7c2d12)';
+    } else {
+      btn.textContent = '✏️ Nůž';
+      btn.style.background = 'linear-gradient(180deg,#2f6b47,#1a4731)';
+    }
+    toolSelected.clear();
+    updateSelHints();
+    drawAll();
+  });
+  bind("clearHolderBtn", async () => { if (holderPoints.length && await showConfirm("Smazat polygon držáku?")) { holderPoints.length = 0; drawAll(); } });
+
+  // ── Generátor ISO nože ──
+  function syncInsertFields(parsed) {
+    if (!parsed) return;
+    const el = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
+    el('ins_shape',     parsed.shape);
+    el('ins_size',      parsed.size);
+    el('ins_radius',    Math.round(parsed.cornerRadius * 10));
+    el('ins_clearance', parsed.clearance);
+    const desc = document.getElementById('insertDesc');
+    if (desc) desc.textContent = describeInsert(parsed);
+  }
+  bind("parseInsertBtn", () => {
+    const code = (document.getElementById('insertCode')?.value || '').trim();
+    const parsed = parseInsertCode(code);
+    if (parsed) syncInsertFields(parsed);
+    else showToast('Nerozpoznaný ISO kód. Příklad: DCMT070204', 'warning');
+  });
+  document.getElementById('insertCode')?.addEventListener('input', e => {
+    const parsed = parseInsertCode(e.target.value);
+    if (parsed) syncInsertFields(parsed);
+  });
+  function getInsertConfig() {
+    return {
+      shape:     document.getElementById('ins_shape')?.value     || 'D',
+      size:      parseFloat(document.getElementById('ins_size')?.value)      || 7,
+      cr:        (parseFloat(document.getElementById('ins_radius')?.value)   || 4) / 10,
+      clearance: parseFloat(document.getElementById('ins_clearance')?.value) || 7,
+    };
+  }
+  bind("genInsertBtn", () => {
+    const c = getInsertConfig();
+    const result = generateInsertPolygon(c.shape, c.size, c.cr, c.clearance);
+    if (result) { applyInsertToCanvas(result, false); showToast(`Nůž ${c.shape} vygenerován`, 'success'); }
+    else showToast('Nepodporovaný tvar', 'error');
+  });
+  bind("genInsertHolderBtn", () => {
+    const c = getInsertConfig();
+    const result = generateInsertPolygon(c.shape, c.size, c.cr, c.clearance);
+    if (result) { applyInsertToCanvas(result, true); showToast(`Nůž ${c.shape} + držák vygenerovány`, 'success'); }
+    else showToast('Nepodporovaný tvar', 'error');
+  });
+
+  // Groove / radius v editoru hřídele
+  bind("grooveModeBtn", () => {
+    grooveModeActive = !grooveModeActive;
+    if (grooveModeActive) {
+      radiusModeActive = false;
+      if (pendingRadius) { pendingRadius = null; }
+      const rs = document.getElementById("radiusStatus");
+      if(rs) rs.innerText = "⚙️ Režim rádius neaktivní";
+    }
+    if (!grooveModeActive && pendingGroove) { pendingGroove = null; drawAll(); }
+    const gs = document.getElementById("grooveStatus");
+    if(gs) gs.innerText = grooveModeActive ? "⛏️ Režim zápich AKTIVNÍ" : "⚙️ Režim zápich neaktivní";
+  });
+  bind("radiusModeBtn",()=>{
+    radiusModeActive=!radiusModeActive;
+    if (radiusModeActive) {
+      grooveModeActive = false;
+      if (pendingGroove) { pendingGroove = null; }
+      const gs = document.getElementById("grooveStatus");
+      if(gs) gs.innerText = "⚙️ Režim zápich neaktivní";
+    }
+    if (!radiusModeActive && pendingRadius) { pendingRadius = null; drawAll(); }
+    const rs = document.getElementById("radiusStatus");
+    if(rs) rs.innerText=radiusModeActive?"✔️ AKTIVNÍ – klikni na vrchol":"⚙️ Režim rádius neaktivní";
+  });
+
+  // Export / Import JSON nastavení (původní)
+  bind("exportJsonBtn", () => {
+    const payload = { version: 1, exportedAt: new Date().toISOString(), controls: getControlsSnapshot(), shafts: JSON.parse(localStorage.getItem('saved_shafts')||'[]'), tools: JSON.parse(localStorage.getItem('saved_tools')||'[]'), holderPoints: holderPoints };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `generator_nastaveni_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(a.href);
+    showToast('Nastavení exportováno do JSON', 'success');
+  });
+  bind("importJsonBtn", () => { const ijf=document.getElementById("importJsonFile"); if(ijf) ijf.click(); });
+  const ijf=document.getElementById("importJsonFile"); if(ijf) ijf.onchange = (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if(data.version !== 1) throw new Error('Neznámá verze souboru');
+        if(data.controls) applyControlsSnapshot(data.controls);
+        if(Array.isArray(data.shafts)) localStorage.setItem('saved_shafts', JSON.stringify(data.shafts));
+        if(Array.isArray(data.tools))  localStorage.setItem('saved_tools',  JSON.stringify(data.tools));
+        if(Array.isArray(data.holderPoints)) { holderPoints.length = 0; holderPoints.push(...data.holderPoints); }
+        updateLibrarySelects();
+        showToast(`Import OK — ${(data.shafts||[]).length} hřídelí, ${(data.tools||[]).length} nožů`, 'success', 4000);
+      } catch(err) { showToast('Chyba při importu: ' + err.message, 'error', 5000); }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  // Obrázek podklad v editoru nože
+  bind("importImgBtn", () => { const iif=document.getElementById("importImgFile"); if(iif) iif.click(); });
+  const iif=document.getElementById("importImgFile"); if(iif) iif.onchange = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const params = toolParams || getCanvasParams(toolCanvas, false);
+      const cx = toolCanvas.width / 2, cy = toolCanvas.height / 2;
+      const worldCenter = canvasToWorld(toolCanvas, cx, cy, params);
+      const wScale = (toolCanvas.width * 0.6) / (img.width * params.baseScale);
+      const halfWW = img.width  * wScale / 2;
+      const halfWH = img.height * wScale / 2;
+      toolBgImage = { img, wx: worldCenter.x - halfWW, wy: worldCenter.y + halfWH, wScale, opacity: 0.4 };
+      const ic=document.getElementById('imgControls'); if(ic) ic.style.display = 'flex';
+      URL.revokeObjectURL(url);
+      drawAll();
+    };
+    img.src = url;
+    e.target.value = '';
+  };
+  const imgMoveBtn = document.getElementById('imgMoveBtn');
+  if(imgMoveBtn) imgMoveBtn.onclick = () => {
+    imgMoveActive = !imgMoveActive;
+    imgMoveBtn.classList.toggle('active', imgMoveActive);
+    toolCanvas.style.cursor = imgMoveActive ? 'grab' : '';
+  };
+  const imgOp = document.getElementById('imgOpacity');
+  if(imgOp) imgOp.oninput = (ev) => { if (toolBgImage) { toolBgImage.opacity = parseInt(ev.target.value) / 100; drawAll(); } };
+  bind("imgRemoveBtn", () => {
+    toolBgImage = null; imgMoveActive = false; imgDragState = null;
+    if(imgMoveBtn) imgMoveBtn.classList.remove('active');
+    toolCanvas.style.cursor = '';
+    const ic=document.getElementById('imgControls'); if(ic) ic.style.display = 'none';
+    drawAll();
+  });
+
+  // Výběr nože v editoru hřídele
+  const shaftToolSel = document.getElementById('shaftToolSelect');
+  if(shaftToolSel){
+    shaftToolSel.addEventListener('change', (e)=>{
+      const tool = getTools().find(t=>t.id===e.target.value);
+      if(tool && tool.points){
+        toolPoints.length = 0;
+        toolPoints.push(...tool.points);
+        holderPoints.length = 0;
+        if(tool.holderPoints) holderPoints.push(...tool.holderPoints);
+        drawAll();
+        showToast(`Nůž ${tool.name} načten pro simulaci`, 'info');
+      }
+    });
+  }
+
+  // Tool canvas holder interceptor
+  const tc = document.getElementById('toolCanvas');
+  if(tc){
+    tc.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || toolDrawMode !== 'holder' || radiusModeActive || imgMoveActive) return;
+      if (!toolParams) return;
+      const r = tc.getBoundingClientRect();
+      const sx = (e.clientX - r.left) * (tc.width / r.width);
+      const sy = (e.clientY - r.top)  * (tc.height / r.height);
+      const base = screenToBase(tc, sx, sy, toolVP);
+      let bestIdx = -1, bestDist = Infinity;
+      const thresh = 14 / toolVP.scale;
+      for (let i = 0; i < holderPoints.length; i++) {
+        const cp = worldToCanvas(tc, holderPoints[i], toolParams);
+        const d = Math.hypot(cp.x - base.x, cp.y - base.y);
+        if (d < thresh && d < bestDist) { bestDist = d; bestIdx = i; }
+      }
+      if (bestIdx >= 0) {
+        window._holderDrag = { idx: bestIdx, origX: holderPoints[bestIdx].x, origY: holderPoints[bestIdx].y,
+          startWX: canvasToWorld(tc, base.x, base.y, toolParams).x,
+          startWY: canvasToWorld(tc, base.x, base.y, toolParams).y };
+        e.stopImmediatePropagation();
+      } else {
+        const world = canvasToWorld(tc, base.x, base.y, toolParams);
+        const snap = parseFloat(document.getElementById("snapSize")?.value||0.5);
+        holderPoints.push({ x: Math.round(world.x/snap)*snap, y: Math.round(world.y/snap)*snap });
+        drawAll();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+    tc.addEventListener("dblclick", (e) => {
+      if (toolDrawMode !== 'holder') return;
+      const r = tc.getBoundingClientRect();
+      const sx = (e.clientX - r.left) * (tc.width / r.width);
+      const sy = (e.clientY - r.top)  * (tc.height / r.height);
+      const base = screenToBase(tc, sx, sy, toolVP);
+      let bestIdx = -1, bestDist = Infinity;
+      const thresh = 14 / toolVP.scale;
+      for (let i = 0; i < holderPoints.length; i++) {
+        const cp = worldToCanvas(tc, holderPoints[i], toolParams);
+        const d = Math.hypot(cp.x - base.x, cp.y - base.y);
+        if (d < thresh && d < bestDist) { bestDist = d; bestIdx = i; }
+      }
+      if (bestIdx >= 0) { holderPoints.splice(bestIdx, 1); drawAll(); e.stopImmediatePropagation(); }
+    }, true);
+  }
+  window.addEventListener("mousemove", (e) => {
+    if (!window._holderDrag || !toolParams) return;
+    const tc = document.getElementById('toolCanvas');
+    if(!tc) return;
+    const r = tc.getBoundingClientRect();
+    const sx = (e.clientX - r.left) * (tc.width / r.width);
+    const sy = (e.clientY - r.top)  * (tc.height / r.height);
+    const base = screenToBase(tc, sx, sy, toolVP);
+    const world = canvasToWorld(tc, base.x, base.y, toolParams);
+    const snap = parseFloat(document.getElementById("snapSize")?.value||0.5);
+    const hd = window._holderDrag;
+    holderPoints[hd.idx] = {
+      x: Math.round((hd.origX + world.x - hd.startWX) / snap) * snap,
+      y: Math.round((hd.origY + world.y - hd.startWY) / snap) * snap,
+    };
+    drawAll();
+  });
+  window.addEventListener("mouseup", () => { window._holderDrag = null; });
+
+  // Global keyboard shortcuts
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      let redraw = false;
+      if (pendingGroove) {
+        pendingGroove = null;
+        const gs = document.getElementById("grooveStatus");
+        if(gs) gs.innerText = grooveModeActive ? "⛏️ Režim zápich AKTIVNÍ – klikni na profil" : "⚙️ Režim zápich neaktivní";
+        redraw = true;
+      }
+      if (pendingRadius) {
+        pendingRadius = null;
+        const rs = document.getElementById("radiusStatus") || document.getElementById("radiusStatusTool");
+        if(rs) rs.innerText = radiusModeActive ? "✔️ Režim rádius AKTIVNÍ – klikni na vrchol" : "⚙️ Režim rádius neaktivní";
+        redraw = true;
+      }
+      if (targetSelected.size || toolSelected.size || activeSelRect) {
+        targetSelected.clear(); toolSelected.clear();
+        activeSelRect = null; groupDrag = null;
+        updateSelHints(); redraw = true;
+      }
+      if (imgMoveActive) {
+        imgMoveActive = false;
+        const btn = document.getElementById('imgMoveBtn');
+        if (btn) btn.classList.remove('active');
+        if(tc) tc.style.cursor = '';
+        redraw = true;
+      }
+      if (redraw) drawAll();
+    }
+    if ((e.key === "Delete" || e.key === "Backspace") && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      let redraw = false;
+      if (targetSelected.size) {
+        [...targetSelected].sort((a, b) => b - a).forEach(i => targetPoints.splice(i, 1));
+        targetSelected.clear(); updateDataRange(targetPoints, true); syncTableFromTarget(); compensatedProfile = []; redraw = true;
+      }
+      if (toolSelected.size) {
+        const pts = toolDrawMode === 'holder' ? holderPoints : toolPoints;
+        [...toolSelected].sort((a, b) => b - a).forEach(i => pts.splice(i, 1));
+        toolSelected.clear(); updateDataRange(toolPoints, false); redraw = true;
+      }
+      if (redraw) { updateSelHints(); drawAll(); }
+    }
+  });
+});
+
+function getControlsSnapshot(){
+  return {
+    startDia:    document.getElementById('startDia')?.value,
+    feed:        document.getElementById('feed')?.value,
+    feedDokonceni: document.getElementById('feedDokonceni')?.value,
+    stepRad:     document.getElementById('stepRad')?.value,
+    retractRad:  document.getElementById('retractRad')?.value,
+    dokonceni:   document.getElementById('dokonceni')?.value,
+    knife:       document.getElementById('knife')?.value,
+    mode:        document.getElementById('mode')?.value,
+    stepX:       document.getElementById('stepX')?.value,
+    stepY:       document.getElementById('stepY')?.value,
+    snapSize:    document.getElementById('snapSize')?.value,
+  };
+}
+function applyControlsSnapshot(s){
+  if(!s) return;
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el && v!==undefined) el.value=v; };
+  set('startDia', s.startDia); set('feed', s.feed); set('feedDokonceni', s.feedDokonceni); set('stepRad', s.stepRad);
+  set('retractRad', s.retractRad); set('dokonceni', s.dokonceni);
+  set('knife', s.knife); set('mode', s.mode);
+  set('stepX', s.stepX); set('stepY', s.stepY); set('snapSize', s.snapSize);
+}
+</script>
+</body>
+</html>
