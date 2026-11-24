@@ -2,6 +2,8 @@
 
 Browser-based CAM software and open-source CNC lathe designed for STEM education.
 
+Full cnc-kit and software available at https://mystriks.eu/cnc-kit
+
 ![KidCAM Interface](kidcam-ui.png)
 
 ## Overview
